@@ -5,44 +5,37 @@ async function getByAccount(req, res) {
     const { from, to } = req.query;
 
     // Llamada al servicio (por ahora solo loguea)
-    service.getByAccount(accountId, { from, to });
-
-    // Respuesta placeholder
-    return res.json({ accountId, from: from || null, to: to || null, items: [] });
+    try {
+        const items = await service.getByAccount(accountId, { from, to });
+        return res.json({ accountId, from: from || null, to: to || null, items });
+    } catch (err) {
+        console.error('[controller] getByAccount error', err);
+        return res.status(500).json({ error: 'failed_to_get_by_account' });
+    }
 }
 
 async function getById(req, res) {
     const { id } = req.params;
-    service.getById(id);
-    return res.json({ id, detail: null });
+    try {
+        const detail = await service.getById(id);
+        if (!detail) return res.status(404).json({ error: 'not_found' });
+        return res.json({ id, detail });
+    } catch (err) {
+        console.error('[controller] getById error', err);
+        return res.status(500).json({ error: 'failed_to_get_by_id' });
+    }
 }
 
 const BankStatement = require('../../db/models/bankStatement');
 
 async function postTransaction(req, res) {
     const payload = req.body;
-    service.postTransaction(payload);
-
-    // Crear un bank-statement mock y persistirlo
     try {
-        const tx = {
-            date: payload.date ? new Date(payload.date) : new Date(),
-            amount: payload.amount || 0,
-            type: payload.type || 'credit',
-            description: payload.description || '',
-        };
-
-        const stmt = await BankStatement.create({
-            account_id: payload.accountId || payload.account_id || 'unknown',
-            date_start: payload.date_start ? new Date(payload.date_start) : new Date(),
-            date_end: payload.date_end ? new Date(payload.date_end) : new Date(),
-            transactions: [tx],
-        });
-
-        return res.status(201).json({ created: true, statement: stmt });
+        const created = await service.postTransaction(payload);
+        return res.status(201).json({ created: true, statement: created });
     } catch (err) {
-        console.error('[controller] Error creating mock bank statement', err);
-        return res.status(500).json({ error: 'failed_to_create_mock' });
+        console.error('[controller] postTransaction error', err);
+        return res.status(500).json({ error: 'failed_to_create_transaction' });
     }
 }
 
