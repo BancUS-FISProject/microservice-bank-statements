@@ -64,6 +64,11 @@ Arquitectura / archivos importantes
 Archivo de pruebas (REST Client)
 - `bankstatements.http` contiene ejemplos para probar los endpoints desde la extensión REST Client de VS Code.
 
+Pruebas con REST Client
+- Abre `bankstatements.http` en VS Code.
+- Instala la extensión "REST Client" si no la tienes.
+- Haz click en "Send Request" sobre cualquiera de las peticiones para ejecutarla y ver la respuesta en el panel lateral.
+
 Notas y recomendaciones
 - Se creó un `.gitignore` para node, editores y artefactos.
 - Las dependencias incluyen `express`, `dotenv`, `mongoose` y `nodemon` (dev).
