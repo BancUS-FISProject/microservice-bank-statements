@@ -17,11 +17,33 @@ async function getById(req, res) {
     return res.json({ id, detail: null });
 }
 
+const BankStatement = require('../../db/models/bankStatement');
+
 async function postTransaction(req, res) {
     const payload = req.body;
     service.postTransaction(payload);
-    // 202 Accepted - se acepta la transacción para procesamiento async
-    return res.status(202).json({ accepted: true });
+
+    // Crear un bank-statement mock y persistirlo
+    try {
+        const tx = {
+            date: payload.date ? new Date(payload.date) : new Date(),
+            amount: payload.amount || 0,
+            type: payload.type || 'credit',
+            description: payload.description || '',
+        };
+
+        const stmt = await BankStatement.create({
+            account_id: payload.accountId || payload.account_id || 'unknown',
+            date_start: payload.date_start ? new Date(payload.date_start) : new Date(),
+            date_end: payload.date_end ? new Date(payload.date_end) : new Date(),
+            transactions: [tx],
+        });
+
+        return res.status(201).json({ created: true, statement: stmt });
+    } catch (err) {
+        console.error('[controller] Error creating mock bank statement', err);
+        return res.status(500).json({ error: 'failed_to_create_mock' });
+    }
 }
 
 module.exports = { getByAccount, getById, postTransaction };
