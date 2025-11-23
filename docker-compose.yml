@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      args:
+        - NODE_ENV=development
+    command: npm run dev
+    ports:
+      - "${PORT:-3000}:3000"
+    env_file:
+      - .env
+    environment:
+      - PORT=${PORT}
+      - NODE_ENV=development
+      - MONGO_URI=${MONGO_URI}
+    volumes:
+      - ./:/usr/src/app:delegated # replica el codigo del local a dentro del contenedor
+      - /usr/src/app/node_modules # para que no se pisen los node_modules del contenedor
+    depends_on:
+      - mongo
+
+  mongo:
+    image: mongo:6.0
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db # persiste los datos de mongo: mantener los datos en cada iteracción
+volumes:
+  mongo-data:

@@ -25,7 +25,7 @@ function createApp() {
 function start() {
     const app = createApp();
     const server = app.listen(port, () => {
-        console.log(`Server listening on port ${port}`);
+        console.log(`Server listening on port : ${port}`);
     });
     return server;
 }
