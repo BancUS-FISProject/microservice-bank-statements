@@ -2,11 +2,11 @@
 # Abre este archivo en VS Code y haz click en "Send Request" sobre cada request.
 
 ### Obtener estados por cuenta (con filtros opcionales)
-GET http://localhost:3000/v1/bankstatemens/by-account/acc-1?from=2025-01-01&to=2025-12-31
+GET http://localhost:3000/v1/bankstatemens/by-account/acc-abc?from=2025-01-01&to=2025-12-31
 Accept: application/json
 
 ### Obtener estado por id
-GET http://localhost:3000/v1/bankstatemens/abc-123
+GET http://localhost:3000/v1/bankstatemens/692326778d4462e702b4437c
 Accept: application/json
 
 ### Registrar transacción
@@ -14,8 +14,10 @@ POST http://localhost:3000/v1/bankstatemens/transaction
 Content-Type: application/json
 
 {
-  "accountId": "acc-1",
+  "accountId": "acc-3",
   "amount": 100.5,
   "type": "credit",
-  "description": "Pago prueba"
+  "description": "Pago prueba",
+  "date": "2024-06-15"   
 }
+

@@ -10,7 +10,7 @@ router.get('/by-account/:accountId', controller.getByAccount);
 // GET  /v1/bankstatemens/{id}
 router.get('/:id', controller.getById);
 
-// POST /v1/bankstatemens/transaction
-router.post('/transaction', controller.postTransaction);
+// POST /v1/bankstatemens/generate/{month}/{accountId}
+router.post('/generate/:month/:accountId', controller.generate);
 
 module.exports = router;

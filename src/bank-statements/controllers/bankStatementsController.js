@@ -28,15 +28,15 @@ async function getById(req, res) {
 
 const BankStatement = require('../../db/models/bankStatement');
 
-async function postTransaction(req, res) {
-    const payload = req.body;
+async function generate(req, res) {
+    const { accountId, month } = req.params;
     try {
-        const created = await service.postTransaction(payload);
+        const created = await service.generate(accountId, month);
         return res.status(201).json({ created: true, statement: created });
     } catch (err) {
-        console.error('[controller] postTransaction error', err);
-        return res.status(500).json({ error: 'failed_to_create_transaction' });
+        console.error('[controller] generate error', err);
+        return res.status(500).json({ error: 'failed_to_generation' });
     }
 }
 
-module.exports = { getByAccount, getById, postTransaction };
+module.exports = { getByAccount, getById, generate };

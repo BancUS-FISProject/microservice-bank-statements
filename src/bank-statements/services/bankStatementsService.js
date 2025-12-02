@@ -18,21 +18,10 @@ async function getById(id) {
     return repo.findById(id);
 }
 
-async function postTransaction(payload) {
-    console.log(`[service] postTransaction -> payload=${JSON.stringify(payload)}`);
-    // Transformar payload en tx y delegar en el repositorio para persistir
-    const tx = {
-        date: payload.date ? new Date(payload.date) : new Date(),
-        amount: payload.amount || 0,
-        type: payload.type || 'credit',
-        description: payload.description || '',
-    };
-    // Guardar creando un nuevo statement simple (por ahora)
-    const result = await repo.appendTransaction(payload.accountId || payload.account_id || 'unknown', tx, {
-        date_start: payload.date_start ? new Date(payload.date_start) : undefined,
-        date_end: payload.date_end ? new Date(payload.date_end) : undefined,
-    });
-    return result;
+async function generate(accountId, month) {
+    console.log(`[service] generate -> payload=${JSON.stringify(payload)}`);
+    // Transformar los valores entrantes 
+    return {};
 }
 
 module.exports = { getByAccount, getById, postTransaction };
