@@ -1,0 +1,187 @@
+openapi: 3.0.3
+info:
+  title: Bank Statements API (spec de pruebas)
+  version: 1.0.0
+  description: OpenAPI para probar los endpoints definidos en `src/bank-statements/router.js`.
+
+servers:
+  - url: http://localhost:3000
+    description: Servidor local (ajusta puerto según tu app)
+
+paths:
+  /v1/bankstatemens/by-account/{accountId}:
+    get:
+      summary: Obtener extractos por cuenta
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista de bank statements para la cuenta
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BankStatement'
+              examples:
+                sample:
+                  value:
+                    - id: "stmt-2025-11-1"
+                      accountId: "1"
+                      month: "2025-11"
+                      generatedAt: "2025-12-01T10:00:00Z"
+                      balance: 1234.56
+                      transactions:
+                        - $ref: '#/components/schemas/Transaction'
+                    - id: "stmt-2025-10-1"
+                      accountId: "1"
+                      month: "2025-10"
+                      generatedAt: "2025-11-01T10:00:00Z"
+                      balance: 987.65
+        '404':
+          description: Cuenta no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /v1/bankstatemens/{id}:
+    get:
+      summary: Obtener un bank statement por id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Bank statement encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankStatement'
+              examples:
+                sample:
+                  value:
+                    id: "stmt-2025-11-1"
+                    accountId: "1"
+                    month: "2025-11"
+                    generatedAt: "2025-12-01T10:00:00Z"
+                    balance: 1234.56
+                    transactions:
+                      - $ref: '#/components/schemas/Transaction'
+        '404':
+          description: Statement no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /v1/bankstatemens/generate/{month}/{accountId}:
+    post:
+      summary: Generar un bank statement para mes y cuenta
+      parameters:
+        - name: month
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "2025-11"
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Bank statement generado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankStatement'
+              examples:
+                sample:
+                  value:
+                    id: "stmt-2025-11-1"
+                    accountId: "1"
+                    month: "2025-11"
+                    generatedAt: "2025-12-02T12:00:00Z"
+                    balance: 1500.00
+                    transactions:
+                      - $ref: '#/components/schemas/Transaction'
+        '400':
+          description: Parámetros inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    BankStatement:
+      type: object
+      properties:
+        id:
+          type: string
+        accountId:
+          type: string
+        month:
+          type: string
+          description: mes en formato YYYY-MM
+        generatedAt:
+          type: string
+          format: date-time
+        balance:
+          type: number
+          format: float
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transaction'
+      required: [id, accountId, month, generatedAt]
+
+    Transaction:
+      type: object
+      properties:
+        sender:
+          type: string
+        receiver:
+          type: string
+        quantity:
+          type: number
+        status:
+          type: string
+          default: pending
+        currency:
+          type: string
+          default: USD
+        sender_balance:
+          type: number
+          nullable: true
+        receiver_balance:
+          type: number
+          nullable: true
+        gmt_time:
+          type: string
+          format: date-time
+      required: [sender, receiver, quantity]
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: boolean
+        message:
+          type: string
+
+tags:
+  - name: bankstatements
+    description: Operaciones sobre bank statements
+
+x-info:
+  generatedBy: assistant
