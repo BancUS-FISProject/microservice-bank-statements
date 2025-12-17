@@ -32,6 +32,18 @@ module.exports = {
         }
     },
 
+    getAllAccounts: async () => {
+        try {
+            const base = endpoints.accounts;
+            const client = createClient(base);
+            const url = `${base}/accounts`;
+            const res = await client.get(url);
+            return res.data;
+        } catch (err) {
+            return { error: true, message: err.message };
+        }
+    },
+
     sendNotification: async (payload) => {
         try {
             const base = endpoints.notifications;

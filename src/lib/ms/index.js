@@ -11,7 +11,9 @@ if (MS_STRATEGY === 'http') {
 }
 
 module.exports = {
+    getAllAccounts: () => strategy.getAllAccounts(),
     getAccount: (id) => strategy.getAccount(id),
     getTransactions: (accountId) => strategy.getTransactions(accountId),
+    getAllAccounts: (count) => strategy.getAllAccounts ? strategy.getAllAccounts(count) : Promise.resolve([]),
     sendNotification: (payload) => strategy.sendNotification(payload),
 };

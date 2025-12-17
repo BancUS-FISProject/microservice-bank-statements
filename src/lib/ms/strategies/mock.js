@@ -40,6 +40,11 @@ module.exports = {
         return mockAccount(id);
     },
 
+    getAllAccounts: async (count = 5) => {
+        // devuelve una lista de cuentas mock para pruebas
+        return Array.from({ length: count }).map((_, i) => mockAccount(String(i + 1)));
+    },
+
     getTransactions: async (accountId) => {
         // return a list of 3 mock transactions
         return Array.from({ length: 3 }).map(() => mockTransaction(accountId));

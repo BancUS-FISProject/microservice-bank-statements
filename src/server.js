@@ -20,6 +20,14 @@ function createApp() {
     const bankRouter = require('./bank-statements/router');
     app.use('/v1/bankstatemens', bankRouter);
 
+    // Inicializar schedulers (si existen)
+    try {
+        require('./lib/scheduler/bankStatementsCron');
+        console.log('[server] Scheduler bankStatementsCron cargado');
+    } catch (err) {
+        console.warn('[server] No se pudo cargar scheduler:', err.message);
+    }
+
     return app;
 }
 
@@ -29,7 +37,12 @@ async function start(mongoUri) {
     if (!uri) {
         console.warn('[server] MONGO_URI not provided. Skipping DB connection.');
     } else {
-        await connect(uri);
+        try {
+            await connect(uri);
+        } catch (err) {
+            // No hacer que la app falle si la BD no está disponible en entornos de prueba.
+            console.error('[server] Error conectando a la BD, se continúa sin conexión:', err.message);
+        }
     }
 
     const server = app.listen(port, () => {

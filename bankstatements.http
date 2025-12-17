@@ -1,23 +1,30 @@
+
 # Pruebas para endpoints de Bank Statements (REST Client)
 # Abre este archivo en VS Code y haz click en "Send Request" sobre cada request.
 
-### Obtener estados por cuenta (con filtros opcionales)
+### 1) Obtener estados por cuenta (con filtros opcionales `from` y `to`)
 GET http://localhost:3000/v1/bankstatemens/by-account/acc-abc?from=2025-01-01&to=2025-12-31
 Accept: application/json
 
-### Obtener estado por id
+### 2) Obtener estados por cuenta (sin filtros)
+GET http://localhost:3000/v1/bankstatemens/by-account/acc-xyz
+Accept: application/json
+
+### 3) Obtener un bank statement por id
 GET http://localhost:3000/v1/bankstatemens/692326778d4462e702b4437c
 Accept: application/json
 
-### Registrar transacción
-POST http://localhost:3000/v1/bankstatemens/transaction
+### 4) Generar un bank statement (POST) — usa `month` y `accountId` en la URL
+POST http://localhost:3000/v1/bankstatemens/generate/2025-11/acc-abc
+Accept: application/json
 Content-Type: application/json
 
 {
-  "accountId": "acc-3",
-  "amount": 100.5,
-  "type": "credit",
-  "description": "Pago prueba",
-  "date": "2024-06-15"   
+  "note": "opcional - el endpoint actual no requiere body, pero puedes enviar metadata si lo adaptas"
 }
+
+### 5) Generar otro ejemplo para pruebas (respuestas 201)
+POST http://localhost:3000/v1/bankstatemens/generate/2025-12/acc-xyz
+Accept: application/json
+
 

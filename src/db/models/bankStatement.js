@@ -8,6 +8,13 @@ const AccountSchema = new Schema({
     email: { type: String, required: true },
 });
 
+const TransactionSchema = new Schema({
+    date: { type: Date, required: true },
+    amount: { type: Number, required: true },
+    currency: { type: String, required: true },
+    description: { type: String },
+}, { _id: false });
+
 const BankStatementSchema = new Schema({
     account: { type: AccountSchema, required: true },
     date_start: { type: Date, required: true },
@@ -19,11 +26,6 @@ const BankStatementSchema = new Schema({
     month: { type: Number, required: true, index: true },
 }, { timestamps: true });
 
-const TransactionSchema = new Schema({
-    date: { type: Date, required: true },
-    amount: { type: Number, required: true },
-    currency: { type: String, required: true },
-    description: { type: String },
-}, { _id: false });
+
 
 module.exports = model('BankStatement', BankStatementSchema);
