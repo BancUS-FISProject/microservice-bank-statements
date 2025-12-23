@@ -1,43 +1,39 @@
 
 # Pruebas para endpoints de Bank Statements (REST Client)
-# Abre este archivo en VS Code y haz click en "Send Request" sobre cada request.
+# Mantener solo 5 peticiones que coinciden con el router actual
 
-//Esta no serviría creo
-### 1) Obtener estados por cuenta (con filtros opcionales `from` y `to`)
-GET http://localhost:3000/v1/bankstatemens/by-account/1500?from=2025-12-01&to=2025-12-31
+### 1) Obtener meses disponibles por cuenta (GET)
+GET http://localhost:3000/v1/bankstatemens/by-account/1500
 Accept: application/json
 
-### 2) Obtener estados por cuenta (sin filtros)
-GET http://localhost:3000/v1/bankstatemens/by-account/101
-Accept: application/json
-
-### 3) Obtener un bank statement por id
+### 2) Obtener detalle de un statement por id (GET)
 GET http://localhost:3000/v1/bankstatemens/6943094a20e1c401710b75b4
 Accept: application/json
 
-### 4) Generar un bank statement (POST) — usa `month` y `accountId` en la URL
-POST http://localhost:3000/v1/bankstatemens/generate/2025-11/acc-abc
+### 3) Generar statement (POST) -> single (body) o bulk (sin body)
+POST http://localhost:3000/v1/bankstatemens/generate
 Accept: application/json
 Content-Type: application/json
 
 {
-  "note": "opcional - el endpoint actual no requiere body, pero puedes enviar metadata si lo adaptas"
+  "accountId": "101",
+  "month": "2025-12",
+  "transactions": [
+    { "sender": "x", "receiver": "101", "amount": 200.0, "currency": "USD", "gmt_time": "2025-12-05T12:00:00Z" }
+  ]
 }
 
-### 5) Generar otro ejemplo para pruebas (respuestas 201)
-POST http://localhost:3000/v1/bankstatemens/generate/2025-12/acc-xyz
+### 4) Eliminar por identificador (DELETE) -> body: id OR accountId+month OR accountName+month
+DELETE http://localhost:3000/v1/bankstatemens/by-identifier
 Accept: application/json
+Content-Type: application/json
 
-### 6) Generar para todas las cuentas (POST sin parámetros) -- si el servicio soporta la ruta, o bien usa la ruta con params (ambas llamadas al mismo código actualmente)
-POST http://localhost:3000/v1/bankstatemens/generate
-Accept: application/json
+{
+  "accountId": "101",
+  "month": "2025-12"
+}
 
-### 7) Eliminar un estado de cuenta por id (DELETE)
-DELETE http://localhost:3000/v1/bankstatemens/6943094020e1c401710b75a8
-Accept: application/json
-
-### 8) Reemplazar la lista de estados de cuenta de una cuenta (PUT)
-# Reemplaza todos los statements para la cuenta con id '1' (body: array de statements)
+### 5) Reemplazar lista de statements de una cuenta (PUT)
 PUT http://localhost:3000/v1/bankstatemens/account/101/statements
 Accept: application/json
 Content-Type: application/json
@@ -58,3 +54,6 @@ Content-Type: application/json
 ]
 
 
+### 7) Eliminar un estado de cuenta por id (DELETE)
+
+DELETE http://localhost:3000/v1/bankstatemens/6943094020e1c401710b75a8

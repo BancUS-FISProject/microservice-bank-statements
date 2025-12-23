@@ -49,8 +49,8 @@ Arquitectura / archivos importantes
 - `src/bank-statements/router.js` — define endpoints:
 	- GET  /v1/bankstatemens/by-account/:accountId  — listar meses disponibles para una cuenta (acepta query params `from` y `to`). Devuelve un objeto con `months` donde cada entrada incluye `year`, `month`, `month_name`, `count`, `statementId` (identificador representativo del statement del mes), `date_start` y `date_end`.
 	- GET  /v1/bankstatemens/:id — obtener detalle del `BankStatement` por su ObjectId (id generado al persistir).
-	- POST /v1/bankstatemens/generate[/:month/:accountId] — generar statements para una cuenta y mes (o para todas las cuentas si se llama `POST /generate` sin params).
-	- DELETE /v1/bankstatemens/:id — elimina un statement por su id.
+	- POST /v1/bankstatemens/generate — generar statements: sin body = bulk para todas las cuentas; con body = generar single a partir de `accountId`, `month` y `transactions`.
+	- DELETE /v1/bankstatemens/by-identifier — eliminar un statement pasando en el `body` `{ id }` OR `{ accountId, month }` OR `{ accountName, month }`.
 	- PUT /v1/bankstatemens/account/:accountId/statements — reemplaza la lista de statements de una cuenta (body: array de statements).
 - `src/bank-statements/controllers` — controladores HTTP.
 - `src/bank-statements/services` — lógica de negocio (usa el repositorio).

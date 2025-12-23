@@ -12,11 +12,13 @@ router.get('/by-account/:accountId', validate(validators.getByAccount), controll
 // GET  /v1/bankstatemens/{id}
 router.get('/:id', validate(validators.getById), controller.getById);
 
-// POST /v1/bankstatemens/generate/{month}/{accountId}
-router.post('/generate/:month/:accountId', validate(validators.generate), controller.generate);
+// POST /v1/bankstatemens/generate -> generar puntual a partir de transacciones en body
+router.post('/generate', validate(validators.generate), controller.generate);
 
-// DELETE /v1/bankstatemens/{id} -> eliminar estado de cuenta
-router.delete('/:id', validate(validators.deleteById), controller.deleteById);
+// NOTE: removed legacy routes for parameterized generate and delete by id
+
+// DELETE /v1/bankstatemens/by-identifier -> eliminar pasando body { id } OR { accountId, month } OR { accountName, month }
+router.delete('/by-identifier', validate(validators.deleteByIdentifier), controller.deleteByIdentifier);
 
 // PUT /v1/bankstatemens/account/{accountId}/statements -> reemplazar lista de estados de cuenta
 router.put('/account/:accountId/statements', validate(validators.updateStatements), controller.updateStatements);

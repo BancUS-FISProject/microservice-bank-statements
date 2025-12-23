@@ -25,6 +25,28 @@ async function getById(req, res) {
 }
 
 async function generate(req, res) {
+    // If body contains transactions -> generate single statement from provided data
+    const body = req.body || {};
+    const hasTx = Array.isArray(body.transactions) && body.transactions.length > 0;
+    if (hasTx || body.month || body.accountId) {
+        const accountId = body.accountId || req.params.accountId;
+        const month = body.month || req.params.month;
+        const transactions = body.transactions || [];
+        try {
+            const stmt = await bankStatementsService.generateSingle({ accountId, month, transactions });
+            return res.status(201).json({ created: true, statement: stmt });
+        } catch (err) {
+            console.error('[controller] generateSingle error', err);
+            if (err && err.message === 'month_in_progress') {
+                return res.status(400).json({ error: 'month_in_progress', message: err.userMessage || 'Mes en curso - no se puede generar' });
+            }
+            if (err && err.message === 'accountId_required') return res.status(400).json({ error: 'accountId_required' });
+            if (err && err.message === 'month_required') return res.status(400).json({ error: 'month_required' });
+            return res.status(500).json({ error: 'failed_to_generate_single' });
+        }
+    }
+
+    // Otherwise fallback to bulk generate
     try {
         const created = await bankStatementsService.generate();
         return res.status(201).json({ created: true, statements: created });
@@ -34,14 +56,18 @@ async function generate(req, res) {
     }
 }
 
-async function deleteById(req, res) {
-    const { id } = req.params;
+async function deleteByIdentifier(req, res) {
+    // body can contain { id } OR { accountId, month } OR { accountName, month }
+    const body = req.body || {};
     try {
-        const deleted = await bankStatementsService.deleteById(id);
+        const deleted = await bankStatementsService.deleteByIdentifier(body);
         if (!deleted) return res.status(404).json({ error: 'not_found' });
+        // deleted may be the deleted doc or result
+        const id = (deleted && (deleted._id || deleted.id)) || body.id;
         return res.json({ deleted: true, id });
     } catch (err) {
-        console.error('[controller] deleteById error', err);
+        console.error('[controller] deleteByIdentifier error', err);
+        if (err && err.message === 'identifier_required') return res.status(400).json({ error: 'identifier_required' });
         return res.status(500).json({ error: 'failed_to_delete' });
     }
 }
@@ -59,6 +85,6 @@ async function updateStatements(req, res) {
     }
 }
 
-module.exports = { getByAccount, getById, generate, deleteById, updateStatements };
+module.exports = { getByAccount, getById, generate, deleteByIdentifier, updateStatements };
 
 

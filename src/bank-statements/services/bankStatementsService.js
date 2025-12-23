@@ -133,7 +133,7 @@ async function generate() {
                 if (amount > 0) total_incoming += amount;
                 else if (amount < 0) total_outgoing += Math.abs(amount);
             }
-
+            console.log(` total_incoming=${total_incoming} total_outgoing=${total_outgoing}`);
             return {
                 date: t.gmt_time ? new Date(t.gmt_time) : new Date(),
                 amount,
@@ -141,6 +141,8 @@ async function generate() {
                 description: t.status || '',
             };
         });
+
+        console.log(`[service] generateForAccount -> ${accountId} mappedTxCount=${(mappedTx || []).length} total_incoming=${total_incoming} total_outgoing=${total_outgoing}`);
 
         const statement = {
             account: {
@@ -162,6 +164,7 @@ async function generate() {
         try {
             const BankStatement = require('../../db/models/bankStatement');
             const created = await BankStatement.create(statement);
+            console.log('[service] generateForAccount persisted totals', { accountId, total_incoming: created.total_incoming, total_outgoing: created.total_outgoing });
             console.log('[service] generate: persisted for', accountId, created && created._id);
             // intentar notificar
             try {
@@ -195,18 +198,145 @@ async function generate() {
     return results;
 }
 
-module.exports = { getByAccount, getById, generate };
+// generate a single statement from provided transactions (or return existing)
+async function generateSingle({ accountId, month, transactions }) {
+    console.log('[service] generateSingle ->', accountId, month, Array.isArray(transactions) ? transactions.length : 0);
+    if (!accountId) throw new Error('accountId_required');
+    if (!month) throw new Error('month_required');
 
-// delete statement by id
-async function deleteById(id) {
-    console.log('[service] deleteById ->', id);
-    try {
-        const deleted = await repo.deleteById(id);
-        return deleted;
-    } catch (err) {
-        console.error('[service] deleteById error', err);
+    const [yStr, mStr] = String(month).split('-');
+    const year = parseInt(yStr, 10);
+    const monthNum = Math.max(0, parseInt(mStr, 10));
+    if (!year || !monthNum) throw new Error('invalid_month_format');
+
+    // check if target is current month -> disallow
+    const now = new Date();
+    const nowYear = now.getUTCFullYear();
+    const nowMonth = now.getUTCMonth() + 1;
+    if (year === nowYear && monthNum === nowMonth) {
+        const err = new Error('month_in_progress');
+        err.userMessage = 'No es posible generar el estado para el mes en curso';
         throw err;
     }
+
+    // if already exists, return it
+    try {
+        const existing = await repo.findByAccountYearMonth(accountId, year, monthNum);
+        if (existing) return existing;
+    } catch (err) {
+        console.warn('[service] generateSingle: error checking existing', err.message || err);
+    }
+
+    // compute totals from provided transactions
+    let total_incoming = 0;
+    let total_outgoing = 0;
+    const mapped = (transactions || []).map(t => {
+        const raw = Number(t.quantity || t.amount || 0);
+        const amount = Number.isNaN(raw) ? 0 : raw;
+        if (t.receiver && String(t.receiver) === String(accountId)) {
+            total_incoming += Math.abs(amount);
+        } else if (t.sender && String(t.sender) === String(accountId)) {
+            total_outgoing += Math.abs(amount);
+        } else {
+            if (amount > 0) total_incoming += amount;
+            else if (amount < 0) total_outgoing += Math.abs(amount);
+        }
+        return {
+            date: t.gmt_time ? new Date(t.gmt_time) : new Date(),
+            amount,
+            currency: t.currency || 'USD',
+            description: t.status || '',
+        };
+    });
+
+    const total = total_incoming + total_outgoing;
+
+    // try to enrich account data
+    let account = { id: accountId };
+    try {
+        const ms = require('../../lib/ms');
+        if (ms && typeof ms.getAccount === 'function') {
+            const acc = await ms.getAccount(accountId);
+            if (acc) account = Object.assign({}, account, acc);
+        }
+    } catch (err) {
+        console.warn('[service] generateSingle: could not fetch account data', err.message || err);
+    }
+
+    const date_start = new Date(year, monthNum - 1, 1);
+    const date_end = new Date(year, monthNum, 0);
+
+    const stmt = {
+        account: {
+            id: account.id || accountId,
+            iban: account.iban || '',
+            name: account.name || '',
+            email: account.email || null,
+        },
+        date_start,
+        date_end,
+        transactions: mapped,
+        total_incoming,
+        total_outgoing,
+        total,
+        year,
+        month: monthNum,
+    };
+
+
+    try {
+        const created = await repo.saveStatement(stmt);
+        return created;
+    } catch (err) {
+        console.error('[service] generateSingle: persist failed', err.message || err);
+        // return built statement if persist fails
+        return stmt;
+    }
+}
+
+// delete statement by identifier: supports { id } OR { accountId, month } OR { accountName, month }
+async function deleteByIdentifier(opts = {}) {
+    console.log('[service] deleteByIdentifier ->', opts && (opts.id || (opts.accountId && opts.month) || (opts.accountName && opts.month)));
+    const { id, accountId, accountName, month } = opts || {};
+
+    if (id) {
+        try {
+            const deleted = await repo.deleteById(id);
+            return deleted;
+        } catch (err) {
+            console.error('[service] deleteByIdentifier: delete error', err.message || err);
+            throw err;
+        }
+    }
+
+    if ((accountId || accountName) && month) {
+        const [yStr, mStr] = String(month).split('-');
+        const year = parseInt(yStr, 10);
+        const monthNum = Math.max(0, parseInt(mStr, 10));
+        if (!year || !monthNum) throw new Error('invalid_month_format');
+
+        let existing = null;
+        try {
+            if (accountId) existing = await repo.findByAccountYearMonth(accountId, year, monthNum);
+            else if (accountName) existing = await repo.findByAccountNameYearMonth(accountName, year, monthNum);
+        } catch (err) {
+            console.error('[service] deleteByIdentifier: lookup error', err.message || err);
+            throw err;
+        }
+
+        if (!existing) return null;
+        // delete by _id
+        try {
+            const deleted = await repo.deleteById(existing._id);
+            return deleted;
+        } catch (err) {
+            console.error('[service] deleteByIdentifier: delete error', err.message || err);
+            throw err;
+        }
+    }
+
+    const e = new Error('identifier_required');
+    throw e;
 }
 
 // replace the list of statements for an account
@@ -228,5 +358,4 @@ async function updateStatements(accountId, statements) {
     }
 }
 
-// export new functions
-module.exports = Object.assign(module.exports, { deleteById, updateStatements });
+module.exports = { getByAccount, getById, generate, generateSingle, deleteByIdentifier, updateStatements };

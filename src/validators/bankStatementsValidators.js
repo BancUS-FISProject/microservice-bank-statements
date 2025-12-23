@@ -11,11 +11,28 @@ module.exports = {
         params: Joi.object({ id: Joi.string().pattern(/^[0-9a-fA-F]{24}$/).required() })
     },
     generate: {
-        // keep existing generate route with optional month/account params (some routes still use them)
-        params: Joi.object({ month: Joi.string().pattern(monthPattern).optional(), accountId: Joi.string().optional() })
+        body: Joi.object({
+            accountId: Joi.string().optional(),
+            month: Joi.string().pattern(monthPattern).optional(),
+            transactions: Joi.array().items(Joi.object({
+                sender: Joi.string().optional(),
+                receiver: Joi.string().optional(),
+                quantity: Joi.number().optional(),
+                amount: Joi.number().optional(),
+                status: Joi.string().optional(),
+                currency: Joi.string().optional(),
+                gmt_time: Joi.string().isoDate().optional()
+            })).optional()
+        }).optional()
     },
-    deleteById: {
-        params: Joi.object({ id: Joi.string().pattern(/^[0-9a-fA-F]{24}$/).required() })
+
+    deleteByIdentifier: {
+        body: Joi.object({
+            id: Joi.string().pattern(/^[0-9a-fA-F]{24}$/).optional(),
+            accountId: Joi.string().optional(),
+            accountName: Joi.string().optional(),
+            month: Joi.string().pattern(monthPattern).optional()
+        }).or('id', 'accountId', 'accountName').with('accountId', 'month').with('accountName', 'month')
     },
     updateStatements: {
         params: Joi.object({ accountId: Joi.string().required() }),
