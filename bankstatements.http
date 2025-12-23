@@ -2,16 +2,17 @@
 # Pruebas para endpoints de Bank Statements (REST Client)
 # Abre este archivo en VS Code y haz click en "Send Request" sobre cada request.
 
+//Esta no serviría creo
 ### 1) Obtener estados por cuenta (con filtros opcionales `from` y `to`)
-GET http://localhost:3000/v1/bankstatemens/by-account/acc-abc?from=2025-01-01&to=2025-12-31
+GET http://localhost:3000/v1/bankstatemens/by-account/1500?from=2025-12-01&to=2025-12-31
 Accept: application/json
 
 ### 2) Obtener estados por cuenta (sin filtros)
-GET http://localhost:3000/v1/bankstatemens/by-account/acc-xyz
+GET http://localhost:3000/v1/bankstatemens/by-account/101
 Accept: application/json
 
 ### 3) Obtener un bank statement por id
-GET http://localhost:3000/v1/bankstatemens/692326778d4462e702b4437c
+GET http://localhost:3000/v1/bankstatemens/6943094a20e1c401710b75b4
 Accept: application/json
 
 ### 4) Generar un bank statement (POST) — usa `month` y `accountId` en la URL
@@ -26,5 +27,34 @@ Content-Type: application/json
 ### 5) Generar otro ejemplo para pruebas (respuestas 201)
 POST http://localhost:3000/v1/bankstatemens/generate/2025-12/acc-xyz
 Accept: application/json
+
+### 6) Generar para todas las cuentas (POST sin parámetros) -- si el servicio soporta la ruta, o bien usa la ruta con params (ambas llamadas al mismo código actualmente)
+POST http://localhost:3000/v1/bankstatemens/generate
+Accept: application/json
+
+### 7) Eliminar un estado de cuenta por id (DELETE)
+DELETE http://localhost:3000/v1/bankstatemens/6943094020e1c401710b75a8
+Accept: application/json
+
+### 8) Reemplazar la lista de estados de cuenta de una cuenta (PUT)
+# Reemplaza todos los statements para la cuenta con id '1' (body: array de statements)
+PUT http://localhost:3000/v1/bankstatemens/account/101/statements
+Accept: application/json
+Content-Type: application/json
+
+[
+  {
+    "account": { "iban": "ES00 0000 0000 1234", "name": "Cuenta Prueba", "email": "test@example.com" },
+    "date_start": "2025-12-01T00:00:00.000Z",
+    "date_end": "2025-12-31T23:59:59.999Z",
+    "transactions": [
+      { "date": "2025-12-05T12:00:00.000Z", "amount": 100.5, "currency": "USD", "description": "Ingreso prueba" }
+    ],
+    "total_incoming": 100.5,
+    "total_outgoing": 0,
+    "year": 2025,
+    "month": 12
+  }
+]
 
 

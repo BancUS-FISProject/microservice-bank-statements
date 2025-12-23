@@ -24,24 +24,42 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/BankStatement'
+                type: object
+                properties:
+                  accountId:
+                    type: string
+                  from:
+                    type: string
+                    nullable: true
+                  to:
+                    type: string
+                    nullable: true
+                  months_count:
+                    type: integer
+                  months:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MonthSummary'
               examples:
                 sample:
                   value:
-                    - id: "stmt-2025-11-1"
-                      accountId: "1"
-                      month: "2025-11"
-                      generatedAt: "2025-12-01T10:00:00Z"
-                      balance: 1234.56
-                      transactions:
-                        - $ref: '#/components/schemas/Transaction'
-                    - id: "stmt-2025-10-1"
-                      accountId: "1"
-                      month: "2025-10"
-                      generatedAt: "2025-11-01T10:00:00Z"
-                      balance: 987.65
+                    accountId: "1"
+                    months_count: 2
+                    months:
+                      - year: 2025
+                        month: 11
+                        month_name: "Noviembre"
+                        count: 1
+                        statementId: "694308fa63d97fe88ce5cc3e"
+                        date_start: "2025-11-01T00:00:00Z"
+                        date_end: "2025-11-30T23:59:59Z"
+                      - year: 2025
+                        month: 10
+                        month_name: "Octubre"
+                        count: 1
+                        statementId: "694308fa63d97fe88ce5cc2d"
+                        date_start: "2025-10-01T00:00:00Z"
+                        date_end: "2025-10-31T23:59:59Z"
         '404':
           description: Cuenta no encontrada
           content:
@@ -123,6 +141,28 @@ paths:
 
 components:
   schemas:
+    MonthSummary:
+      type: object
+      properties:
+        year:
+          type: integer
+        month:
+          type: integer
+        month_name:
+          type: string
+        count:
+          type: integer
+        statementId:
+          type: string
+          description: Identificador único (ObjectId) representativo del mes
+        date_start:
+          type: string
+          format: date-time
+        date_end:
+          type: string
+          format: date-time
+      required: [year, month, count]
+
     BankStatement:
       type: object
       properties:
@@ -178,6 +218,75 @@ components:
           type: boolean
         message:
           type: string
+
+  # Routes for deletion and update
+  /v1/bankstatemens/{id}:
+    delete:
+      summary: Eliminar un estado de cuenta por su id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Eliminado correctamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: boolean
+                  id:
+                    type: string
+        '404':
+          description: No encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /v1/bankstatemens/account/{accountId}/statements:
+    put:
+      summary: Reemplazar lista de estados de cuenta de una cuenta
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/BankStatement'
+      responses:
+        '200':
+          description: Reemplazo completado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  updated:
+                    type: boolean
+                  count:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BankStatement'
+        '400':
+          description: Body inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
 tags:
   - name: bankstatements

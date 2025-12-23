@@ -1,6 +1,6 @@
 # Microservice of Bank Statements
 
-Pequeño microservicio para gestionar estados de cuenta y transacciones.
+Microservicio para gestionar estados de cuenta y transacciones.
 
 Contenido rápido
 - Servidor Express (CommonJS) en `src/server.js`.
@@ -47,22 +47,30 @@ docker compose logs -f mongo
 
 Arquitectura / archivos importantes
 - `src/bank-statements/router.js` — define endpoints:
-	- GET  /v1/bankstatemens/by-account/:accountId  — listar estados por cuenta (acepta query params `from` y `to`). Devuelve solo id, date_start y date_end y añade `month_name` calculado desde `date_start`. Solo devuelve registros cuyo `date_end` sea anterior a la fecha actual.
-	- GET  /v1/bankstatemens/:id — obtener detalle por id.
-	- POST /v1/bankstatemens/transaction — registrar una transacción (actualmente crea un documento — ver `services` y `repositories`).
+	- GET  /v1/bankstatemens/by-account/:accountId  — listar meses disponibles para una cuenta (acepta query params `from` y `to`). Devuelve un objeto con `months` donde cada entrada incluye `year`, `month`, `month_name`, `count`, `statementId` (identificador representativo del statement del mes), `date_start` y `date_end`.
+	- GET  /v1/bankstatemens/:id — obtener detalle del `BankStatement` por su ObjectId (id generado al persistir).
+	- POST /v1/bankstatemens/generate[/:month/:accountId] — generar statements para una cuenta y mes (o para todas las cuentas si se llama `POST /generate` sin params).
+	- DELETE /v1/bankstatemens/:id — elimina un statement por su id.
+	- PUT /v1/bankstatemens/account/:accountId/statements — reemplaza la lista de statements de una cuenta (body: array de statements).
 - `src/bank-statements/controllers` — controladores HTTP.
 - `src/bank-statements/services` — lógica de negocio (usa el repositorio).
 - `src/bank-statements/repositories` — persistencia (usa Mongoose).
 - `src/db/models/bankStatement.js` — modelo `BankStatement` con campos:
-	- `account_id` (String)
+	- `account` (subdocument con `id`, `iban`, `name`, `email`)
 	- `date_start` (Date)
 	- `date_end` (Date)
-	- `transactions` (Array of { date, amount, type, description })
+	- `transactions` (Array of { date, amount, currency, description })
 - `src/db/models/monthInterval.js` — modelo `MonthInterval` con:
 	- `month` (Number), `date_start`, `date_end`, `year`.
 
 Archivo de pruebas (REST Client)
 - `bankstatements.http` contiene ejemplos para probar los endpoints desde la extensión REST Client de VS Code.
+
+Validaciones y middleware
+- Se añadió un middleware de validación reutilizable en `src/middleware/validate.js` que usa `joi` para validar `params`, `query` y `body`. Los esquemas están en `src/validators/bankStatementsValidators.js`.
+
+Notas sobre `statementId`
+- El endpoint `GET /v1/bankstatemens/by-account/:accountId` ya no devuelve un array de `statementIds` por mes; ahora cada entrada mensual tiene un único campo `statementId` que representa el statement más relevante del mes (por defecto se toma el statement con `date_end` más reciente dentro del grupo).
 
 Pruebas con REST Client
 - Abre `bankstatements.http` en VS Code.

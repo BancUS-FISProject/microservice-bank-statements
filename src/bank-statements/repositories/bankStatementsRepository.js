@@ -3,25 +3,62 @@ const BankStatement = require('../../db/models/bankStatement');
 
 async function findByAccount(accountId, filters = {}) {
     console.log(`[repo] findByAccount -> accountId=${accountId}, filters=${JSON.stringify(filters)}`);
-    const query = { account_id: accountId };
-    if (filters.from) query.date_start = { $gte: new Date(filters.from) };
-    // Siempre filtrar date_end anterior a la fecha actual
-    const now = new Date();
-    if (filters.to) {
-        // Si el filtro 'to' existe, usar la fecha menor entre el 'to' y ahora
-        const toDate = new Date(filters.to);
-        const maxDate = toDate < now ? toDate : now;
-        query.date_end = { $lt: maxDate };
-    } else {
-        query.date_end = { $lt: now };
+
+    const query = {
+        'account.id': accountId
+    };
+    // Filtro opcional por rango de meses (YYYY-MM)
+    if (filters.from) {
+        const [fromYear, fromMonth] = filters.from.split('-').map(Number);
+        query.$or = [
+            { year: { $gt: fromYear } },
+            { year: fromYear, month: { $gte: fromMonth } }
+        ];
     }
-    // Devolver solo los campos solicitados: id, date_start y date_end
-    return BankStatement.find(query).select('_id date_start date_end').lean();
+    if (filters.to) {
+        const [toYear, toMonth] = filters.to.split('-').map(Number);
+        query.$and = [
+            ...(query.$and || []),
+            {
+                $or: [
+                    { year: { $lt: toYear } },
+                    { year: toYear, month: { $lte: toMonth } }
+                ]
+            }
+        ];
+    }
+    return BankStatement
+        .find(query)
+        .sort({ year: -1, month: -1 })
+        .lean();
 }
+
 
 async function findById(id) {
     console.log(`[repo] findById -> id=${id}`);
     return BankStatement.findById(id).lean();
+}
+
+async function deleteById(id) {
+    console.log(`[repo] deleteById -> id=${id}`);
+    return BankStatement.findByIdAndDelete(id).lean();
+}
+
+async function replaceStatementsForAccount(accountId, statements = []) {
+    console.log(`[repo] replaceStatementsForAccount -> accountId=${accountId}, count=${(statements || []).length}`);
+    // eliminar statements existentes
+    await BankStatement.deleteMany({ 'account.id': accountId });
+
+    if (!Array.isArray(statements) || statements.length === 0) return [];
+
+    // asegurar que cada statement tenga el campo account.id correcto
+    const prepared = statements.map(s => {
+        const account = Object.assign({}, s.account || {}, { id: accountId });
+        return Object.assign({}, s, { account });
+    });
+
+    const inserted = await BankStatement.insertMany(prepared);
+    return inserted.map(d => d.toObject());
 }
 
 async function saveStatement(statementData) {
@@ -41,4 +78,4 @@ async function appendTransaction(accountId, tx, opts = {}) {
     return saveStatement(stmt);
 }
 
-module.exports = { findByAccount, findById, saveStatement, appendTransaction };
+module.exports = { findByAccount, findById, saveStatement, appendTransaction, deleteById, replaceStatementsForAccount };

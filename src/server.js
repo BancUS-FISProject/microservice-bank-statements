@@ -37,12 +37,12 @@ async function start(mongoUri) {
     if (!uri) {
         console.warn('[server] MONGO_URI not provided. Skipping DB connection.');
     } else {
-        try {
-            await connect(uri);
-        } catch (err) {
-            // No hacer que la app falle si la BD no está disponible en entornos de prueba.
-            console.error('[server] Error conectando a la BD, se continúa sin conexión:', err.message);
-        }
+        // Intentar conectar en background: no bloquear el arranque del servidor
+        connect(uri).then(() => {
+            console.log('[server] DB connection established (background)');
+        }).catch(err => {
+            console.error('[server] Error conectando a la BD (background):', err.message || err);
+        });
     }
 
     const server = app.listen(port, () => {

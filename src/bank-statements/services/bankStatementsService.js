@@ -1,15 +1,58 @@
 const repo = require('../repositories/bankStatementsRepository');
 
 async function getByAccount(accountId, filters) {
-    console.log(`[service] getByAccount -> accountId=${accountId}, filters=${JSON.stringify(filters)}`);
+    console.log(`[service] getByAccount -> accountId=${accountId}`);
     const items = await repo.findByAccount(accountId, filters);
-    const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-    return items.map(it => {
-        const dateStart = it.date_start ? new Date(it.date_start) : null;
-        const month_name = dateStart ? monthNames[dateStart.getUTCMonth()] : null;
-        return { ...it, month_name };
+    const monthNames = [
+        'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
+    const groups = {};
+    for (const it of (items || [])) {
+        const year = it.year;
+        const month = it.month;
+        if (!year || !month) continue;
+        const key = `${year}-${String(month).padStart(2, '0')}`;
+
+        if (!groups[key]) {
+            groups[key] = {
+                year,
+                month,
+                items: []
+            };
+        }
+        groups[key].items.push(it);
+    }
+    const months = Object.values(groups).map(g => {
+        let minStart = null;
+        let maxEnd = null;
+        let representativeId = null;
+
+        for (const s of g.items) {
+            const ds = s.date_start ? new Date(s.date_start) : null;
+            const de = s.date_end ? new Date(s.date_end) : null;
+
+            if (ds && (!minStart || ds < minStart)) minStart = ds;
+            if (de && (!maxEnd || de > maxEnd)) {
+                maxEnd = de;
+                representativeId = s._id || s.id || null;
+            }
+            // if no date_end present, fallback to _id of first item
+            if (!representativeId && (s._id || s.id)) representativeId = s._id || s.id;
+        }
+
+        return {
+            year: g.year,
+            month: g.month,
+            month_name: monthNames[g.month - 1] || null,
+            count: g.items.length,
+            Id: representativeId
+        };
     });
+    months.sort((a, b) => (b.year - a.year) || (b.month - a.month));
+    return months;
 }
+
 
 async function getById(id) {
     console.log(`[service] getById -> id=${id}`);
@@ -71,12 +114,26 @@ async function generate() {
         let total_incoming = 0;
         let total_outgoing = 0;
         const mappedTx = (transactions || []).map((t) => {
-            const amount = Number(t.quantity || t.amount || 0);
+            const raw = Number(t.quantity || t.amount || 0);
+            const amount = Number.isNaN(raw) ? 0 : raw;
+
+            // classify transaction direction:
+            // 1) if receiver equals accountId -> incoming
+            // 2) else if sender equals accountId -> outgoing
+            // 3) else fallback to sign: positive -> incoming, negative -> outgoing
+            let classified = false;
             if (t.receiver && String(t.receiver) === String(accountId)) {
-                total_incoming += amount;
+                total_incoming += Math.abs(amount);
+                classified = true;
             } else if (t.sender && String(t.sender) === String(accountId)) {
-                total_outgoing += amount;
+                total_outgoing += Math.abs(amount);
+                classified = true;
             }
+            if (!classified) {
+                if (amount > 0) total_incoming += amount;
+                else if (amount < 0) total_outgoing += Math.abs(amount);
+            }
+
             return {
                 date: t.gmt_time ? new Date(t.gmt_time) : new Date(),
                 amount,
@@ -139,3 +196,37 @@ async function generate() {
 }
 
 module.exports = { getByAccount, getById, generate };
+
+// delete statement by id
+async function deleteById(id) {
+    console.log('[service] deleteById ->', id);
+    try {
+        const deleted = await repo.deleteById(id);
+        return deleted;
+    } catch (err) {
+        console.error('[service] deleteById error', err);
+        throw err;
+    }
+}
+
+// replace the list of statements for an account
+async function updateStatements(accountId, statements) {
+    console.log('[service] updateStatements -> accountId=', accountId, 'count=', Array.isArray(statements) ? statements.length : 0);
+    if (!Array.isArray(statements)) throw new Error('statements_must_be_array');
+    // basic normalization: ensure account.id is set for each statement
+    const normalized = statements.map(s => {
+        const st = Object.assign({}, s);
+        st.account = Object.assign({}, st.account || {}, { id: accountId });
+        return st;
+    });
+    try {
+        const out = await repo.replaceStatementsForAccount(accountId, normalized);
+        return out;
+    } catch (err) {
+        console.error('[service] updateStatements error', err);
+        throw err;
+    }
+}
+
+// export new functions
+module.exports = Object.assign(module.exports, { deleteById, updateStatements });
