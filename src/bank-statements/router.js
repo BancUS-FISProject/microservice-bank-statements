@@ -9,6 +9,9 @@ const validators = require('../validators/bankStatementsValidators');
 // GET  /v1/bankstatemens/by-account/{accountId}
 router.get('/by-account/:accountId', validate(validators.getByAccount), controller.getByAccount);
 
+// GET /v1/bankstatemens/by-iban?iban=ES..&month=YYYY-MM
+router.get('/by-iban', validate(validators.getByIbanMonth), controller.getByIbanMonth);
+
 // GET  /v1/bankstatemens/{id}
 router.get('/:id', validate(validators.getById), controller.getById);
 

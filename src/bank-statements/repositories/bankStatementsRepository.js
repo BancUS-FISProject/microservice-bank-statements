@@ -49,6 +49,11 @@ async function findByAccountNameYearMonth(accountName, year, month) {
     return BankStatement.findOne({ 'account.name': accountName, year: Number(year), month: Number(month) }).lean();
 }
 
+async function findByIbanYearMonth(iban, year, month) {
+    console.log(`[repo] findByIbanYearMonth -> iban=${iban}, year=${year}, month=${month}`);
+    return BankStatement.findOne({ 'account.iban': iban, year: Number(year), month: Number(month) }).lean();
+}
+
 async function deleteById(id) {
     console.log(`[repo] deleteById -> id=${id}`);
     return BankStatement.findByIdAndDelete(id).lean();
@@ -88,4 +93,4 @@ async function appendTransaction(accountId, tx, opts = {}) {
     return saveStatement(stmt);
 }
 
-module.exports = { findByAccount, findById, saveStatement, appendTransaction, deleteById, replaceStatementsForAccount, findByAccountYearMonth, findByAccountNameYearMonth };
+module.exports = { findByAccount, findById, saveStatement, appendTransaction, deleteById, replaceStatementsForAccount, findByAccountYearMonth, findByAccountNameYearMonth, findByIbanYearMonth };

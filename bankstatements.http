@@ -1,19 +1,20 @@
 
 # Pruebas para endpoints de Bank Statements (REST Client)
-# Mantener solo 5 peticiones que coinciden con el router actual
+# Casos principales del router (incluye búsqueda por IBAN+mes)
 
 ### 1) Obtener meses disponibles por cuenta (GET)
-GET http://localhost:3000/v1/bankstatemens/by-account/
+GET http://localhost:3000/v1/bankstatemens/by-account/19000
 Accept: application/json
-
-//Crear endopint que devuelta, devolver el json con el detalle de un statement por accountId y month
-GET http://localhost:3000/v1/bankstatemens/by-account/{accountId}/{month}
 
 ### 2) Obtener detalle de un statement por id (GET)
 GET http://localhost:3000/v1/bankstatemens/6943094a20e1c401710b75b4
 Accept: application/json
 
-### 3) Generar statement (POST) -> single (body) o bulk (sin body)
+### 3) Obtener statement por IBAN y mes (GET)
+GET http://localhost:3000/v1/bankstatemens/by-iban?iban=ES8889183678889183671000&month=2025-11
+Accept: application/json
+
+### 4) Generar statement (POST) -> single (body) o bulk (sin body)
 POST http://localhost:3000/v1/bankstatemens/generate
 Accept: application/json
 Content-Type: application/json
@@ -26,7 +27,7 @@ Content-Type: application/json
   ]
 }
 
-### 4) Eliminar por identificador (DELETE) -> body: id OR accountId+month OR accountName+month
+### 5) Eliminar por identificador (DELETE) -> body: id OR accountId+month OR accountName+month
 DELETE http://localhost:3000/v1/bankstatemens/by-identifier
 Accept: application/json
 Content-Type: application/json
@@ -36,14 +37,14 @@ Content-Type: application/json
   "month": "2025-12"
 }
 
-### 5) Reemplazar lista de statements de una cuenta (PUT)
+### 6) Reemplazar lista de statements de una cuenta (PUT)
 PUT http://localhost:3000/v1/bankstatemens/account/101/statements
 Accept: application/json
 Content-Type: application/json
 
 [
   {
-    "account": { "iban": "ES00 0000 0000 1234", "name": "Cuenta Prueba", "email": "test@example.com" },
+    "account": { "iban": "ES1200000000000000000000", "name": "Cuenta Prueba", "email": "test@example.com" },
     "date_start": "2025-12-01T00:00:00.000Z",
     "date_end": "2025-12-31T23:59:59.999Z",
     "transactions": [
@@ -56,7 +57,7 @@ Content-Type: application/json
   }
 ]
 
-
 ### 7) Eliminar un estado de cuenta por id (DELETE)
 
 DELETE http://localhost:3000/v1/bankstatemens/6943094020e1c401710b75a8
+

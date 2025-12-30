@@ -59,6 +59,16 @@ async function getById(id) {
     return repo.findById(id);
 }
 
+async function getByIbanMonth(iban, month) {
+    const cleanIban = String(iban || '').replace(/\s+/g, '').toUpperCase();
+    const [yStr, mStr] = String(month || '').split('-');
+    const year = parseInt(yStr, 10);
+    const monthNum = parseInt(mStr, 10);
+    if (!year || Number.isNaN(monthNum) || monthNum < 1 || monthNum > 12) throw new Error('invalid_month_format');
+
+    return repo.findByIbanYearMonth(cleanIban, year, monthNum);
+}
+
 /**
  * generate()
  * - genera statements para todas las cuentas devueltas por `ms.getAllAccounts()`
@@ -358,4 +368,4 @@ async function updateStatements(accountId, statements) {
     }
 }
 
-module.exports = { getByAccount, getById, generate, generateSingle, deleteByIdentifier, updateStatements };
+module.exports = { getByAccount, getById, getByIbanMonth, generate, generateSingle, deleteByIdentifier, updateStatements };

@@ -1,6 +1,7 @@
 const Joi = require('joi');
 
 const monthPattern = /^[0-9]{4}-[0-9]{2}$/; // YYYY-MM
+const ibanEsPattern = /^ES\d{22}$/; // ES + 22 digits (total 24 chars)
 
 module.exports = {
     getByAccount: {
@@ -9,6 +10,12 @@ module.exports = {
     },
     getById: {
         params: Joi.object({ id: Joi.string().pattern(/^[0-9a-fA-F]{24}$/).required() })
+    },
+    getByIbanMonth: {
+        query: Joi.object({
+            iban: Joi.string().uppercase().pattern(ibanEsPattern).required(),
+            month: Joi.string().pattern(monthPattern).required()
+        })
     },
     generate: {
         body: Joi.object({

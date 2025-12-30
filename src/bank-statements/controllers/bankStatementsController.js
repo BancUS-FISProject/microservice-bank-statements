@@ -24,6 +24,19 @@ async function getById(req, res) {
     }
 }
 
+async function getByIbanMonth(req, res) {
+    const { iban, month } = req.query;
+    try {
+        const detail = await bankStatementsService.getByIbanMonth(iban, month);
+        if (!detail) return res.status(404).json({ error: 'not_found' });
+        return res.json({ iban, month, detail });
+    } catch (err) {
+        console.error('[controller] getByIbanMonth error', err);
+        if (err && err.message === 'invalid_month_format') return res.status(400).json({ error: 'invalid_month_format' });
+        return res.status(500).json({ error: 'failed_to_get_by_iban_month' });
+    }
+}
+
 async function generate(req, res) {
     // If body contains transactions -> generate single statement from provided data
     const body = req.body || {};
@@ -85,6 +98,6 @@ async function updateStatements(req, res) {
     }
 }
 
-module.exports = { getByAccount, getById, generate, deleteByIdentifier, updateStatements };
+module.exports = { getByAccount, getById, getByIbanMonth, generate, deleteByIdentifier, updateStatements };
 
 
