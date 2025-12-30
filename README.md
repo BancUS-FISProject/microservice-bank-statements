@@ -2,7 +2,18 @@
 
 Microservicio para gestionar estados de cuenta y transacciones.
 
-Contenido rápido
+[![Build and Push Docker Image](https://github.com/BancUS-FISProject/microservice-bank-statements/actions/workflows/docker-build-push.yml/badge.svg)](https://github.com/BancUS-FISProject/microservice-bank-statements/actions)
+
+## 🚀 Automatización
+
+Este proyecto incluye **GitHub Actions** que automáticamente:
+- ✅ Valida el código (npm audit)
+- ✅ Construye la imagen Docker
+- ✅ Pushea a Docker Hub con tags semánticos
+
+Ver detalles de configuración en [`.github/GITHUB_ACTIONS_SETUP.md`](.github/GITHUB_ACTIONS_SETUP.md)
+
+## 📋 Contenido rápido
 - Servidor Express (CommonJS) en `src/server.js`.
 - Rutas y lógica en `src/bank-statements/` (router, controllers, services, repositories).
 - Conexión a MongoDB con Mongoose en `src/db/` y modelos en `src/db/models`.
