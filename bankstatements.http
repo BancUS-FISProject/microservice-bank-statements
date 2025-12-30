@@ -3,8 +3,11 @@
 # Mantener solo 5 peticiones que coinciden con el router actual
 
 ### 1) Obtener meses disponibles por cuenta (GET)
-GET http://localhost:3000/v1/bankstatemens/by-account/1500
+GET http://localhost:3000/v1/bankstatemens/by-account/
 Accept: application/json
+
+//Crear endopint que devuelta, devolver el json con el detalle de un statement por accountId y month
+GET http://localhost:3000/v1/bankstatemens/by-account/{accountId}/{month}
 
 ### 2) Obtener detalle de un statement por id (GET)
 GET http://localhost:3000/v1/bankstatemens/6943094a20e1c401710b75b4

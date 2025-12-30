@@ -9,7 +9,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "openapi": "node -e \"const http=require('http'),fs=require('fs');const port=8081;const dir=process.cwd();const server=http.createServer((req,res)=>{let p=decodeURIComponent(req.url); if(p==='/'||p==='/index.html') p='/openapi/swagger-ui.html'; const file=dir+p; fs.readFile(file,(err,data)=>{ if(err){res.statusCode=404; res.end('Not found');} else{ let ct='text/html'; if(p.endsWith('.yaml')) ct='text/yaml'; else if(p.endsWith('.json')) ct='application/json'; else if(p.endsWith('.html')) ct='text/html'; res.setHeader('Content-Type',ct); res.end(data);} });}); server.listen(port,()=>console.log('OpenAPI UI available at http://localhost:'+port));\""
   },
   "dependencies": {
     "axios": "^1.5.0",

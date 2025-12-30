@@ -35,7 +35,7 @@ cron.schedule('0 0 1 * *', async () => {
 
 //cron.schedule('*/10 * * * * *', async () => {
 //    console.log('[cron][test] Ejecutando job de prueba (cada 10s)');
-//   await runGenerateForAll();
+//    await runGenerateForAll();
 //});
 
 module.exports = {

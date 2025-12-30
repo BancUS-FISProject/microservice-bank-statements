@@ -18,6 +18,16 @@ paths:
           required: true
           schema:
             type: string
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           description: Lista de bank statements para la cuenta
@@ -28,14 +38,6 @@ paths:
                 properties:
                   accountId:
                     type: string
-                  from:
-                    type: string
-                    nullable: true
-                  to:
-                    type: string
-                    nullable: true
-                  months_count:
-                    type: integer
                   months:
                     type: array
                     items:
@@ -43,23 +45,15 @@ paths:
               examples:
                 sample:
                   value:
-                    accountId: "1"
-                    months_count: 2
+                    accountId: "101"
                     months:
                       - year: 2025
-                        month: 11
-                        month_name: "Noviembre"
+                        month: 12
+                        month_name: "Diciembre"
                         count: 1
                         statementId: "694308fa63d97fe88ce5cc3e"
-                        date_start: "2025-11-01T00:00:00Z"
-                        date_end: "2025-11-30T23:59:59Z"
-                      - year: 2025
-                        month: 10
-                        month_name: "Octubre"
-                        count: 1
-                        statementId: "694308fa63d97fe88ce5cc2d"
-                        date_start: "2025-10-01T00:00:00Z"
-                        date_end: "2025-10-31T23:59:59Z"
+                        date_start: "2025-12-01T00:00:00Z"
+                        date_end: "2025-12-31T23:59:59Z"
         '404':
           description: Cuenta no encontrada
           content:
@@ -86,13 +80,23 @@ paths:
               examples:
                 sample:
                   value:
-                    id: "stmt-2025-11-1"
-                    accountId: "1"
-                    month: "2025-11"
-                    generatedAt: "2025-12-01T10:00:00Z"
-                    balance: 1234.56
+                    _id: "694308fa63d97fe88ce5cc3e"
+                    account:
+                      id: "101"
+                      name: "Cuenta Prueba"
+                      iban: "ES00 0000 0000 1234"
+                      email: "test@example.com"
+                    year: 2025
+                    month: 12
+                    date_start: "2025-12-01T00:00:00.000Z"
+                    date_end: "2025-12-31T23:59:59.999Z"
+                    total_incoming: 100.5
+                    total_outgoing: 0
                     transactions:
-                      - $ref: '#/components/schemas/Transaction'
+                      - date: "2025-12-05T12:00:00.000Z"
+                        amount: 100.5
+                        currency: "USD"
+                        description: "Ingreso prueba"
         '404':
           description: Statement no encontrado
           content:
@@ -100,38 +104,45 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /v1/bankstatemens/generate/{month}/{accountId}:
+  /v1/bankstatemens/generate:
     post:
-      summary: Generar un bank statement para mes y cuenta
-      parameters:
-        - name: month
-          in: path
-          required: true
-          schema:
-            type: string
-            example: "2025-11"
-        - name: accountId
-          in: path
-          required: true
-          schema:
-            type: string
+      summary: Generar bank statements
+      description: |
+        Si se llama sin body genera para todas las cuentas (bulk).
+        Si se llama con body `{ accountId, month, transactions }` genera un statement puntual (single).
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                accountId:
+                  type: string
+                month:
+                  type: string
+                  pattern: '^\\d{4}-\\d{2}$'
+                transactions:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Transaction'
       responses:
         '201':
-          description: Bank statement generado
+          description: Created (single or bulk)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BankStatement'
+                type: object
               examples:
-                sample:
+                single:
                   value:
-                    id: "stmt-2025-11-1"
-                    accountId: "1"
-                    month: "2025-11"
-                    generatedAt: "2025-12-02T12:00:00Z"
-                    balance: 1500.00
-                    transactions:
-                      - $ref: '#/components/schemas/Transaction'
+                    created: true
+                    statement:
+                      $ref: '#/components/schemas/BankStatement'
+                bulk:
+                  value:
+                    created: true
+                    statements: []
         '400':
           description: Parámetros inválidos
           content:
@@ -139,96 +150,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-components:
-  schemas:
-    MonthSummary:
-      type: object
-      properties:
-        year:
-          type: integer
-        month:
-          type: integer
-        month_name:
-          type: string
-        count:
-          type: integer
-        statementId:
-          type: string
-          description: Identificador único (ObjectId) representativo del mes
-        date_start:
-          type: string
-          format: date-time
-        date_end:
-          type: string
-          format: date-time
-      required: [year, month, count]
-
-    BankStatement:
-      type: object
-      properties:
-        id:
-          type: string
-        accountId:
-          type: string
-        month:
-          type: string
-          description: mes en formato YYYY-MM
-        generatedAt:
-          type: string
-          format: date-time
-        balance:
-          type: number
-          format: float
-        transactions:
-          type: array
-          items:
-            $ref: '#/components/schemas/Transaction'
-      required: [id, accountId, month, generatedAt]
-
-    Transaction:
-      type: object
-      properties:
-        sender:
-          type: string
-        receiver:
-          type: string
-        quantity:
-          type: number
-        status:
-          type: string
-          default: pending
-        currency:
-          type: string
-          default: USD
-        sender_balance:
-          type: number
-          nullable: true
-        receiver_balance:
-          type: number
-          nullable: true
-        gmt_time:
-          type: string
-          format: date-time
-      required: [sender, receiver, quantity]
-
-    Error:
-      type: object
-      properties:
-        error:
-          type: boolean
-        message:
-          type: string
-
-  # Routes for deletion and update
-  /v1/bankstatemens/{id}:
+  /v1/bankstatemens/by-identifier:
     delete:
-      summary: Eliminar un estado de cuenta por su id
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
+      summary: Eliminar un statement por identificador
+      description: Eliminar pasando en el `body` `{ id }` OR `{ accountId, month }` OR `{ accountName, month }`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                accountId:
+                  type: string
+                accountName:
+                  type: string
+                month:
+                  type: string
+                  pattern: '^\\d{4}-\\d{2}$'
       responses:
         '200':
           description: Eliminado correctamente
@@ -287,6 +228,88 @@ components:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    MonthSummary:
+      type: object
+      properties:
+        year:
+          type: integer
+        month:
+          type: integer
+        month_name:
+          type: string
+        count:
+          type: integer
+        statementId:
+          type: string
+          description: Identificador único (ObjectId) representativo del mes
+        date_start:
+          type: string
+          format: date-time
+        date_end:
+          type: string
+          format: date-time
+      required: [year, month, count]
+
+    BankStatement:
+      type: object
+      properties:
+        _id:
+          type: string
+        account:
+          type: object
+          properties:
+            id:
+              type: string
+            iban:
+              type: string
+            name:
+              type: string
+            email:
+              type: string
+        date_start:
+          type: string
+          format: date-time
+        date_end:
+          type: string
+          format: date-time
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transaction'
+        total_incoming:
+          type: number
+        total_outgoing:
+          type: number
+        year:
+          type: integer
+        month:
+          type: integer
+      required: [_id, account, date_start, date_end]
+
+    Transaction:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date-time
+        amount:
+          type: number
+        currency:
+          type: string
+        description:
+          type: string
+      required: [date, amount, currency]
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: boolean
+        message:
+          type: string
 
 tags:
   - name: bankstatements
