@@ -28,7 +28,9 @@ async function getByIbanMonth(req, res) {
     const { iban, month } = req.query;
     try {
         const detail = await bankStatementsService.getByIbanMonth(iban, month);
-        if (!detail) return res.status(404).json({ error: 'not_found' });
+        if (!detail) {
+            return res.status(404).json({ error: 'not_found', message: 'El IBAN no registra estados de cuenta correspondientes a este mes' });
+        }
         return res.json({ iban, month, detail });
     } catch (err) {
         console.error('[controller] getByIbanMonth error', err);
