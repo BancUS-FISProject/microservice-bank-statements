@@ -18,7 +18,7 @@ function createApp() {
 
     // Montar router de la versión 1 para bank statements
     const bankRouter = require('./bank-statements/router');
-    app.use('/v1/bankstatemens', bankRouter);
+    app.use('/v1/bankstatements', bankRouter);
 
     // Inicializar schedulers (si existen)
     try {

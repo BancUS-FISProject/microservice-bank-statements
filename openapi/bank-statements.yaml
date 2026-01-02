@@ -9,7 +9,7 @@ servers:
     description: Servidor local (ajusta puerto según tu app)
 
 paths:
-  /v1/bankstatemens/by-account/{accountId}:
+  /v1/bankstatements/by-account/{accountId}:
     get:
       summary: Obtener extractos por cuenta
       parameters:
@@ -61,7 +61,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /v1/bankstatemens/{id}:
+  /v1/bankstatements/{id}:
     get:
       summary: Obtener un bank statement por id
       parameters:
@@ -104,7 +104,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /v1/bankstatemens/generate:
+  /v1/bankstatements/generate:
     post:
       summary: Generar bank statements
       description: |
@@ -150,7 +150,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /v1/bankstatemens/by-identifier:
+  /v1/bankstatements/by-identifier:
     delete:
       summary: Eliminar un statement por identificador
       description: Eliminar pasando en el `body` `{ id }` OR `{ accountId, month }` OR `{ accountName, month }`.

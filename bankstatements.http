@@ -3,19 +3,19 @@
 # Casos principales del router (incluye búsqueda por IBAN+mes)
 
 ### 1) Obtener meses disponibles por cuenta (GET)
-GET http://localhost:3000/v1/bankstatemens/by-account/19000
+GET http://localhost:3000/v1/bankstatements/by-account/19000
 Accept: application/json
 
 ### 2) Obtener detalle de un statement por id (GET)
-GET http://localhost:3000/v1/bankstatemens/6943094a20e1c401710b75b4
+GET http://localhost:3000/v1/bankstatements/6943094a20e1c401710b75b4
 Accept: application/json
 
 ### 3) Obtener statement por IBAN y mes (GET)
-GET http://localhost:3000/v1/bankstatemens/by-iban?iban=ES8889183678889183671000&month=2025-09
+GET http://localhost:3000/v1/bankstatements/by-iban?iban=ES8889183678889183671000&month=2025-09
 Accept: application/json
 
 ### 4) Generar statement (POST) -> single (body) o bulk (sin body)
-POST http://localhost:3000/v1/bankstatemens/generate
+POST http://localhost:3000/v1/bankstatements/generate
 Accept: application/json
 Content-Type: application/json
 
@@ -28,7 +28,7 @@ Content-Type: application/json
 }
 
 ### 5) Eliminar por identificador (DELETE) -> body: id OR accountId+month OR accountName+month
-DELETE http://localhost:3000/v1/bankstatemens/by-identifier
+DELETE http://localhost:3000/v1/bankstatements/by-identifier
 Accept: application/json
 Content-Type: application/json
 
@@ -38,7 +38,7 @@ Content-Type: application/json
 }
 
 ### 6) Reemplazar lista de statements de una cuenta (PUT)
-PUT http://localhost:3000/v1/bankstatemens/account/101/statements
+PUT http://localhost:3000/v1/bankstatements/account/101/statements
 Accept: application/json
 Content-Type: application/json
 
@@ -59,5 +59,5 @@ Content-Type: application/json
 
 ### 7) Eliminar un estado de cuenta por id (DELETE)
 
-DELETE http://localhost:3000/v1/bankstatemens/6943094020e1c401710b75a8
+DELETE http://localhost:3000/v1/bankstatements/6943094020e1c401710b75a8
 

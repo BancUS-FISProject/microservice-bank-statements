@@ -33,9 +33,9 @@ describe('Bank Statements service API', () => {
         expect(res.body).toHaveProperty('status', 'ok');
     });
 
-    it('POST /v1/bankstatemens/generate devuelve 201 o 500 (sin BD conectada)', async () => {
+    it('POST /v1/bankstatements/generate devuelve 201 o 500 (sin BD conectada)', async () => {
         const res = await request(app)
-            .post('/v1/bankstatemens/generate')
+            .post('/v1/bankstatements/generate')
             .send({
                 accountId: testAccountId,
                 month: '2025-09',
@@ -54,8 +54,8 @@ describe('Bank Statements service API', () => {
         expect([201, 500]).toContain(res.status);
     });
 
-    it('GET /v1/bankstatemens/by-account/:accountId retorna 200 o 500', async () => {
-        const res = await request(app).get(`/v1/bankstatemens/by-account/${testAccountId}`);
+    it('GET /v1/bankstatements/by-account/:accountId retorna 200 o 500', async () => {
+        const res = await request(app).get(`/v1/bankstatements/by-account/${testAccountId}`);
 
         expect([200, 500]).toContain(res.status);
         if (res.status === 200) {
@@ -64,22 +64,22 @@ describe('Bank Statements service API', () => {
         }
     });
 
-    it('GET /v1/bankstatemens/by-iban con IBAN inválido devuelve 400', async () => {
-        const res = await request(app).get('/v1/bankstatemens/by-iban?iban=INVALID&month=2025-09');
+    it('GET /v1/bankstatements/by-iban con IBAN inválido devuelve 400', async () => {
+        const res = await request(app).get('/v1/bankstatements/by-iban?iban=INVALID&month=2025-09');
 
         expect(res.status).toBe(400);
         expect(res.body).toHaveProperty('error');
     });
 
-    it('GET /v1/bankstatemens/by-iban con mes inválido devuelve 400', async () => {
-        const res = await request(app).get(`/v1/bankstatemens/by-iban?iban=${testIban}&month=2025-13`);
+    it('GET /v1/bankstatements/by-iban con mes inválido devuelve 400', async () => {
+        const res = await request(app).get(`/v1/bankstatements/by-iban?iban=${testIban}&month=2025-13`);
 
         expect(res.status).toBe(400);
         expect(res.body).toHaveProperty('error');
     });
 
-    it('GET /v1/bankstatemens/by-iban con formato correcto pero sin BD devuelve 500 o 404', async () => {
-        const res = await request(app).get(`/v1/bankstatemens/by-iban?iban=${testIban}&month=2025-09`);
+    it('GET /v1/bankstatements/by-iban con formato correcto pero sin BD devuelve 500 o 404', async () => {
+        const res = await request(app).get(`/v1/bankstatements/by-iban?iban=${testIban}&month=2025-09`);
 
         // Sin BD conectada, esperamos 500; si la BD falla la consulta, puede ser 404
         expect([404, 500]).toContain(res.status);
