@@ -42,6 +42,61 @@ MONGO_URI=mongodb://localhost:27017/bankstatements
 npm run dev
 ```
 
+## 🧪 Pruebas
+
+El proyecto incluye pruebas unitarias e integración usando **Jest** y **Supertest**.
+
+### Tipos de pruebas
+
+#### Pruebas internas (`test/internal.test.js`)
+Pruebas de integración que usan `supertest` para probar la API directamente sin levantar servidor:
+- ✅ Health check del servicio
+- ✅ Crear statements con transacciones
+- ✅ Consultar por cuenta, ID e IBAN
+- ✅ Validaciones de formato (IBAN, mes)
+- ✅ Operaciones PUT y DELETE
+- ✅ Mensajes de error específicos
+
+#### Pruebas externas (`test/external.test.js`)
+Pruebas contra un servicio real corriendo (HTTP):
+- ✅ Todos los endpoints principales
+- ✅ Manejo de errores y casos edge
+- ✅ Se omiten automáticamente si el servicio no está disponible
+
+### Ejecutar pruebas
+
+```bash
+# Instalar dependencias de pruebas (si no lo has hecho)
+npm install
+
+# Ejecutar todas las pruebas
+npm test
+
+# Solo pruebas internas (sin servicio corriendo)
+npm run test:internal
+
+# Solo pruebas externas (requiere servicio en http://localhost:3000)
+npm run test:external
+```
+
+### Para pruebas externas
+
+1. Levanta el servicio en una terminal:
+```bash
+npm run dev
+```
+
+2. En otra terminal, ejecuta las pruebas:
+```bash
+npm run test:external
+```
+
+### Configuración
+
+- **Jest**: configuración en `jest.config.js`
+- **Timeout**: 20 segundos por defecto para pruebas async
+- **Coverage**: `npm test -- --coverage` para ver cobertura de código
+
 Ejecución con Docker Compose (desarrollo)
 1. Levantar servicios (app + mongo):
 

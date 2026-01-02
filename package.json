@@ -7,7 +7,9 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest --runInBand",
+    "test:internal": "jest test/internal.test.js --runInBand",
+    "test:external": "jest test/external.test.js --runInBand",
     "start": "node index.js",
     "dev": "nodemon index.js",
     "openapi": "node -e \"const http=require('http'),fs=require('fs');const port=8081;const dir=process.cwd();const server=http.createServer((req,res)=>{let p=decodeURIComponent(req.url); if(p==='/'||p==='/index.html') p='/openapi/swagger-ui.html'; const file=dir+p; fs.readFile(file,(err,data)=>{ if(err){res.statusCode=404; res.end('Not found');} else{ let ct='text/html'; if(p.endsWith('.yaml')) ct='text/yaml'; else if(p.endsWith('.json')) ct='application/json'; else if(p.endsWith('.html')) ct='text/html'; res.setHeader('Content-Type',ct); res.end(data);} });}); server.listen(port,()=>console.log('OpenAPI UI available at http://localhost:'+port));\""
@@ -21,6 +23,9 @@
     "node-cron": "^3.0.2"
   },
   "devDependencies": {
-    "nodemon": "^3.1.11"
+    "jest": "^29.7.0",
+    "node-fetch": "^2.7.0",
+    "nodemon": "^3.1.11",
+    "supertest": "^6.3.4"
   }
 }
