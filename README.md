@@ -3,10 +3,13 @@
 Microservicio para gestionar estados de cuenta y transacciones.
 
 [![Build and Push Docker Image](https://github.com/BancUS-FISProject/microservice-bank-statements/actions/workflows/docker-build-push.yml/badge.svg)](https://github.com/BancUS-FISProject/microservice-bank-statements/actions)
+[![Run Tests](https://github.com/BancUS-FISProject/microservice-bank-statements/actions/workflows/test.yml/badge.svg)](https://github.com/BancUS-FISProject/microservice-bank-statements/actions)
 
 ## 🚀 Automatización
 
 Este proyecto incluye **GitHub Actions** que automáticamente:
+- ✅ Ejecuta tests en cada push/PR (Node 20 y 22)
+- ✅ Genera reportes de cobertura de código
 - ✅ Valida el código (npm audit)
 - ✅ Construye la imagen Docker
 - ✅ Pushea a Docker Hub con tags semánticos
@@ -41,6 +44,14 @@ MONGO_URI=mongodb://localhost:27017/bankstatements
 ```bash
 npm run dev
 ```
+
+## 📡 Endpoints principales
+
+### Health Check
+- `GET /health` — Verifica el estado del servicio
+
+### API v1 - Bank Statements
+Ver especificación completa en [openapi/bank-statements.yaml](openapi/bank-statements.yaml)
 
 ## 🧪 Pruebas
 

@@ -16,6 +16,11 @@ function createApp() {
         res.json({ status: 'ok', message: 'Microservice bank statements' });
     });
 
+    // Health check endpoint
+    app.get('/health', (req, res) => {
+        res.json({ status: 'ok' });
+    });
+
     // Montar router de la versión 1 para bank statements
     const bankRouter = require('./bank-statements/router');
     app.use('/v1/bankstatements', bankRouter);

@@ -33,6 +33,12 @@ describe('Bank Statements service API', () => {
         expect(res.body).toHaveProperty('status', 'ok');
     });
 
+    it('GET /health devuelve status ok', async () => {
+        const res = await request(app).get('/health');
+        expect(res.statusCode).toBe(200);
+        expect(res.body).toHaveProperty('status', 'ok');
+    });
+
     it('POST /v1/bankstatements/generate devuelve 201 o 500 (sin BD conectada)', async () => {
         const res = await request(app)
             .post('/v1/bankstatements/generate')

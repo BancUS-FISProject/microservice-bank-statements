@@ -33,6 +33,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run tests
+        run: npm run test:internal
+        env:
+          NODE_ENV: test
+
       - name: Run npm audit
         run: npm audit --audit-level=moderate
         continue-on-error: true

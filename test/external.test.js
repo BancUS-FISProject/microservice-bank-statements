@@ -59,6 +59,16 @@ describe('Bank Statements API – tests externos (servicio real)', () => {
         expect(body).toHaveProperty('status', 'ok');
     });
 
+    it('GET /health devuelve status ok', async () => {
+        const res = await http('GET', '/health');
+
+        if (skipIfNoApi()) return;
+
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body).toHaveProperty('status', 'ok');
+    });
+
     it('POST /v1/bankstatements/generate crea un statement con datos de prueba', async () => {
         const res = await http('POST', `${API_PREFIX}/generate`, {
             accountId: testAccountId,

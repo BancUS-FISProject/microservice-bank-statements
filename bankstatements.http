@@ -61,3 +61,7 @@ Content-Type: application/json
 
 DELETE http://localhost:3000/v1/bankstatements/6943094020e1c401710b75a8
 
+### 1) Obtener meses disponibles por cuenta (GET)
+GET http://localhost:3000/health
+Accept: application/json
+
