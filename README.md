@@ -5,12 +5,12 @@
 
 Microservicio para gestionar estados de cuenta bancarios con generación automatizada mensual de transacciones.
 
-## 🚀 Características
+## Características
 
 - **Generación automática**: Los estados de cuenta se generan el **día 1 de cada mes** con las transacciones del **mes anterior**
 - **Autenticación JWT**: Middleware opcional que extrae datos del usuario desde el token
 - **Validación IBAN**: Validación de IBANs españoles (ES + 22 dígitos)
-- **CI/CD**: GitHub Actions con tests automáticos y push a Docker Hub
+- **CI/CD**: GitHub Actions con tests automáticos
 - **Mock data**: 10 cuentas con 10-20 transacciones cada una para pruebas
 
 ## 📋 Requisitos
@@ -72,7 +72,7 @@ npm run test:external
 npm test -- --coverage
 ```
 
-## 🏗️ Arquitectura
+## Arquitectura
 
 ```
 src/
@@ -93,7 +93,7 @@ src/
         └── bankStatementsCron.js  # Cron mensual
 ```
 
-## 📊 Modelo de datos
+## Modelo de datos
 
 **BankStatement**:
 ```javascript
@@ -118,7 +118,7 @@ src/
 }
 ```
 
-## 🔐 Autenticación
+## Autenticación
 
 JWT opcional extraído de `Authorization: Bearer <token>`:
 ```javascript
@@ -135,7 +135,7 @@ JWT opcional extraído de `Authorization: Bearer <token>`:
 
 El API Gateway verifica el token; el microservicio solo lo decodifica.
 
-## 🐳 Docker
+## Docker
 
 ```bash
 # Build y tag
@@ -147,7 +147,7 @@ docker push edithct/microservice-bank-statements:1.1.0
 docker push edithct/microservice-bank-statements:latest
 ```
 
-## 👤 Autor
+## Autora
 
 **Edith Esther Cáceres Tafur**  
 Repositorio: [github.com/BancUS-FISProject/microservice-bank-statements](https://github.com/BancUS-FISProject/microservice-bank-statements)
