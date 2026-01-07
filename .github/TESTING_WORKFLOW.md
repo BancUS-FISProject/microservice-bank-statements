@@ -4,7 +4,7 @@
 
 Se han configurado **2 workflows de GitHub Actions** para el proyecto:
 
-### 1. **test.yml** - Workflow de Tests (NUEVO)
+### 1. **test.yml** - Workflow de Tests
 Ejecuta tests automáticamente en cada push o pull request a las ramas principales.
 
 **Características:**
@@ -15,12 +15,13 @@ Ejecuta tests automáticamente en cada push o pull request a las ramas principal
 - ✅ Ejecuta auditoría de seguridad con `npm audit`
 - ✅ Sube reportes de cobertura como artefactos (7 días de retención)
 
-### 2. **docker-build-push.yml** - Workflow de Docker (ACTUALIZADO)
-Construye y publica la imagen Docker.
+### 2. **docker-build-push.yml** - Workflow de Validación (RENOMBRADO)
+Validación básica del código.
 
-**Actualización:**
-- ✅ Ahora ejecuta tests antes de construir la imagen Docker
-- ✅ Solo construye la imagen si los tests pasan exitosamente
+**Funcionalidad:**
+- ✅ Ejecuta tests internos en Node.js 20
+- ✅ Ejecuta npm audit para validar dependencias
+- ✅ **NO construye ni publica imágenes Docker** (se hace manualmente)
 
 ## 🚀 ¿Cómo funciona?
 
@@ -37,12 +38,21 @@ Construye y publica la imagen Docker.
    - Genera cobertura de código
    - Ejecuta npm audit
    ↓
-4. Si los tests pasan → Ejecuta docker-build-push.yml:
-   - Ejecuta tests nuevamente (validación)
-   - Construye imagen Docker
-   - Publica a Docker Hub
+4. Ejecuta docker-build-push.yml:
+   - Valida con tests en Node 20
+   - Ejecuta npm audit
    ↓
-5. ✅ Commit aprobado y desplegado
+5. ✅ Tests aprobados
+```
+
+### Construcción de imagen Docker (manual):
+
+```bash
+docker buildx build \
+  --platform linux/amd64 \
+  -t edithct/microservice-bank-statements:1.0.0 \
+  -t edithct/microservice-bank-statements:latest \
+  --push .
 ```
 
 ## 📊 Tests Incluidos
@@ -95,7 +105,7 @@ Agrega estos badges al README.md para mostrar el estado de los tests:
 3. **Compatibilidad**: Verifica que funcione en múltiples versiones de Node.js
 4. **Seguridad**: Auditoría automática de dependencias
 5. **Documentación**: Reportes de cobertura de código
-6. **Confianza**: Solo se despliega código que pasa todos los tests
+6. **Control manual**: Despliegue de imágenes Docker bajo demanda
 
 ## 🔍 Ver Resultados
 
@@ -108,5 +118,6 @@ Agrega estos badges al README.md para mostrar el estado de los tests:
 
 - Los tests internos no requieren MongoDB, por lo que son ideales para CI/CD
 - Los reportes de cobertura se guardan como artefactos por 7 días
-- Si los tests fallan, la imagen Docker NO se construirá
-- El workflow se ejecuta en paralelo en Node.js 20 y 22 para asegurar compatibilidad
+- Las imágenes Docker se construyen y publican manualmente según sea necesario
+- El workflow `test.yml` se ejecuta en paralelo en Node.js 20 y 22 para asegurar compatibilidad
+- El workflow `docker-build-push.yml` ejecuta validación básica en Node.js 20

@@ -1,48 +1,59 @@
-# GitHub Actions Setup Guide
+# GitHub Actions - Build and Push Docker Image
 
 ## ¿Qué hace este Action?
 
 El workflow `.github/workflows/docker-build-push.yml` automáticamente:
 
-1. **Valida** el código (npm audit)
-2. **Construye** la imagen Docker
-3. **Hace push** a Docker Hub con tags automáticos:
-   - `latest` (en branch main)
-   - `develop` (en branch develop)
-   - Tags semánticos: `v1.0.0` → `1.0.0`, `1.0`
+1. **Valida** el código con npm audit
+2. **Ejecuta** tests internos
+3. **Verifica** si existen credenciales de Docker Hub
+4. **Construye y publica** imagen Docker (solo si hay credenciales)
 
 Se ejecuta en:
 - ✅ Push a `main` o `develop`
-- ✅ Al crear tags de release (`v*.*.*`)
-- ✅ Pull requests (solo validación, sin push)
+- ✅ Tags de release (`v*.*.*`)
+- ✅ Pull requests (solo tests, sin build)
+- ✅ Ejecución manual (workflow_dispatch)
 
-## Configuración requerida
+## Comportamiento adaptativo
 
-### 1. Agregar secretos a GitHub
+### ✅ Con credenciales Docker Hub configuradas:
+- Ejecuta tests
+- Construye imagen Docker
+- Publica a Docker Hub con tags automáticos
 
-Ve a: **Settings → Secrets and variables → Actions**
+### ⚠️ Sin credenciales Docker Hub:
+- Ejecuta tests
+- Muestra advertencia
+- Omite construcción y publicación de Docker
 
-Agrega dos secretos:
+## Configuración (Opcional)
+
+### Agregar secretos para Docker Hub
+
+Si quieres que el workflow publique automáticamente a Docker Hub:
+
+**Ve a:** Settings → Secrets and variables → Actions
+
+**Agrega dos secretos:**
 
 | Nombre | Valor |
 |--------|-------|
 | `DOCKER_USERNAME` | Tu usuario de Docker Hub |
-| `DOCKER_PASSWORD` | Token de Docker Hub (generar en https://hub.docker.com/settings/security) |
+| `DOCKER_PASSWORD` | Token de Docker Hub |
 
-### 2. Cómo generar un token en Docker Hub
+### Cómo generar un token en Docker Hub
 
 1. Ve a https://hub.docker.com/settings/security
-2. Haz click en "New Access Token"
-3. Dale un nombre descriptivo (ej: `github-actions`)
-4. Cópialo y úsalo como `DOCKER_PASSWORD`
+2. Click en "New Access Token"
+3. Nombre: `github-actions`
+4. Copia el token y úsalo como `DOCKER_PASSWORD`
 
-### 3. Permisos en GitHub
-
-El Action necesita permisos para escribir en el registry. Por defecto está configurado en el YAML.
+> **Nota:** Los secretos son opcionales. El workflow funciona sin ellos (solo ejecuta tests).
 
 ## Cómo usar
 
-### Push normal (valida, construye y pushea)
+### Push normal
 
 ```bash
 git add .
@@ -50,7 +61,8 @@ git commit -m "feat: nuevo endpoint por IBAN"
 git push origin main
 ```
 
-→ El Action construirá y hará push a `edithct/microservice-bank-statements:latest`
+**Con credenciales:** Tests + Build + Push a `edithct/microservice-bank-statements:latest`  
+**Sin credenciales:** Solo tests
 
 ### Release con versionado
 
@@ -59,9 +71,9 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-→ El Action hará push con tags: `1.0.0`, `1.0`, `latest`
+→ Publica con tags: `1.0.0`, `1.0`, `latest` (si hay credenciales)
 
-### Pull Request (solo validación)
+### Pull Request
 
 ```bash
 git checkout -b feature/nuevo-endpoint
@@ -69,48 +81,83 @@ git push origin feature/nuevo-endpoint
 # Crear PR en GitHub
 ```
 
-→ El Action valida npm audit y build, pero NO hace push
+→ Solo ejecuta tests (nunca hace build/push en PRs)
 
-## Archivos generados
+### Construcción manual (alternativa)
 
-- `.github/workflows/docker-build-push.yml` — Workflow principal
-- `.github/workflows/SETUP.md` — Este archivo (opcional)
+Si no tienes credenciales configuradas o prefieres control manual:
+
+```bash
+docker buildx build \
+  --platform linux/amd64 \
+  -t edithct/microservice-bank-statements:1.0.0 \
+  -t edithct/microservice-bank-statements:latest \
+  --push .
+```
+
+## Archivos
+
+- `.github/workflows/docker-build-push.yml` — Workflow principal (tests + Docker)
+- `.github/workflows/test.yml` — Workflow de tests con múltiples versiones Node
 
 ## Troubleshooting
 
-### ❌ "authentication required"
-
-- Verifica que `DOCKER_USERNAME` y `DOCKER_PASSWORD` estén configurados en GitHub Secrets
-- Asegúrate de que el usuario/token tengan permisos para escribir en el repo `edithct/microservice-bank-statements`
-
-### ❌ "Build failed"
+### ❌ "Tests failed"
 
 - Revisa los logs en GitHub → Actions
-- Asegúrate que el Dockerfile sea válido localmente:
+- Ejecuta los tests localmente:
   ```bash
-  docker build -t test:latest .
+  npm run test:internal
   ```
+
+### ⚠️ "Docker credentials not found"
+
+Este es solo un mensaje informativo, no un error. El workflow continúa ejecutando tests.
+
+**Para habilitar build/push automático:**
+- Agrega `DOCKER_USERNAME` y `DOCKER_PASSWORD` en GitHub Secrets
+- Ver sección "Configuración (Opcional)" arriba
+
+### ❌ "authentication required" (con credenciales)
+
+- Verifica que `DOCKER_USERNAME` y `DOCKER_PASSWORD` estén bien configurados
+- Asegúrate de usar un Access Token, no la contraseña de Docker Hub
+- Verifica permisos del token (debe permitir push)
 
 ### ❌ "npm audit" falla
 
-- El Action continúa incluso si npm audit encuentra issues (configurado con `continue-on-error: true`)
-- Revisa los issues: `npm audit`
+- El Action continúa incluso si npm audit encuentra issues (`continue-on-error: true`)
+- Revisa localmente: `npm audit`
 
-## Variables de entorno
+### ❌ "npm ci failed"
 
-Para cambiar:
-- Docker registry: edita `REGISTRY` en el YAML
-- Nombre de imagen: edita `IMAGE_NAME` en el YAML
+- Asegúrate de que `package-lock.json` esté actualizado
+- Ejecuta localmente: `npm ci`
 
-Ejemplo para usar GitHub Container Registry (ghcr.io):
+## Tests ejecutados
 
-```yaml
-REGISTRY: ghcr.io
-IMAGE_NAME: ${{ github.repository }}/microservice-bank-statements
-```
+- ✅ Health check
+- ✅ Generación de statements
+- ✅ Consulta por IBAN
+- ✅ Validación de formato IBAN
+- ✅ Validación de formato mes
+- ✅ Operaciones CRUD
+
+**Total: 8 tests internos**
+
+## Tags automáticos de Docker
+
+Cuando hay credenciales configuradas, el workflow genera tags automáticos:
+
+| Evento | Tags generados |
+|--------|---------------|
+| Push a `main` | `latest`, `main-{sha}` |
+| Push a `develop` | `develop`, `develop-{sha}` |
+| Tag `v1.2.3` | `1.2.3`, `1.2`, `latest` |
 
 ## Recursos
 
-- [Docker Build Push Action](https://github.com/docker/build-push-action)
-- [GitHub Secrets](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions)
-- [Semantic Versioning](https://semver.org/)
+- [GitHub Actions](https://docs.github.com/en/actions)
+- [Docker Hub Access Tokens](https://docs.docker.com/security/for-developers/access-tokens/)
+- [Jest Testing](https://jestjs.io/)
+- [Supertest](https://github.com/visionmedia/supertest)
