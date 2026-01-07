@@ -2,8 +2,7 @@ const { Schema, model } = require('mongoose');
 //Define the schema for bank statements
 
 const AccountSchema = new Schema({
-    id: { type: String, required: true, index: true },
-    iban: { type: String, required: true },
+    iban: { type: String, required: true, index: true },
     name: { type: String, required: true },
     email: { type: String, required: true },
 });

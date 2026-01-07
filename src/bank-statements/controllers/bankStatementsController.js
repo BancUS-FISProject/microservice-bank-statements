@@ -1,13 +1,30 @@
 const bankStatementsService = require('../services/bankStatementsService');
 
-async function getByAccount(req, res) {
-    const { accountId } = req.params;
+async function getByIbanMonths(req, res) {
+    const { iban } = req.params;
+    const user = req.user;
+
     try {
-        const months = await bankStatementsService.getByAccount(accountId);
-        return res.json({ accountId: accountId || null, months });
+        // Verificar que el IBAN solicitado coincida con el del usuario autenticado
+        if (user && user.iban && user.iban !== iban) {
+            return res.status(403).json({
+                error: 'forbidden',
+                message: 'No tienes permiso para acceder a este IBAN'
+            });
+        }
+
+        // Pasar datos del usuario al servicio
+        const months = await bankStatementsService.getByIbanMonths(iban, {}, user);
+
+        // If no months found, return 404
+        if (!months || months.length === 0) {
+            return res.status(404).json({ error: 'not_found', message: 'No hay estados de cuenta para este IBAN' });
+        }
+
+        return res.json({ iban: iban || null, months });
     } catch (err) {
-        console.error('[controller] getByAccount error', err);
-        return res.status(500).json({ error: 'failed_to_get_by_account' });
+        console.error('[controller] getByIbanMonths error', err);
+        return res.status(500).json({ error: 'failed_to_get_by_iban' });
     }
 }
 
@@ -47,8 +64,9 @@ async function generate(req, res) {
         const accountId = body.accountId || req.params.accountId;
         const month = body.month || req.params.month;
         const transactions = body.transactions || [];
+        const user = req.user;
         try {
-            const stmt = await bankStatementsService.generateSingle({ accountId, month, transactions });
+            const stmt = await bankStatementsService.generateSingle({ accountId, month, transactions, user });
             return res.status(201).json({ created: true, statement: stmt });
         } catch (err) {
             console.error('[controller] generateSingle error', err);
@@ -61,7 +79,7 @@ async function generate(req, res) {
         }
     }
 
-    // Otherwise fallback to bulk generate
+    // Otherwise fallback to bulk generate (scheduler automático - NO usa JWT)
     try {
         const created = await bankStatementsService.generate();
         return res.status(201).json({ created: true, statements: created });
@@ -100,6 +118,6 @@ async function updateStatements(req, res) {
     }
 }
 
-module.exports = { getByAccount, getById, getByIbanMonth, generate, deleteByIdentifier, updateStatements };
+module.exports = { getByIbanMonths, getById, getByIbanMonth, generate, deleteByIdentifier, updateStatements };
 
 

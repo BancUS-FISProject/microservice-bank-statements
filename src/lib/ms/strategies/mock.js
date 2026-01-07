@@ -6,52 +6,97 @@ function randomDate(start, end) {
     return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
 }
 
-function mockAccount(id) {
+function generateValidIBAN() {
+    // Generar IBAN español válido: ES + 22 dígitos
+    const digits = Array.from({ length: 22 }, () => Math.floor(Math.random() * 10)).join('');
+    return `ES${digits}`;
+}
+
+function mockAccount(id, iban = null) {
     return {
-        id,
+        id: String(id),
         name: `User ${id}`,
-        iban: `ES${Math.floor(100000000 + Math.random() * 900000000)}`,
-        cards: [`card_${randomId()}`, `card_${randomId()}`],
+        iban: iban || generateValidIBAN(),
         creation_date: randomDate(new Date(2015, 0, 1), new Date()),
         email: `user${id}@example.com`,
-        subscription: ['free', 'standard', 'premium'][Math.floor(Math.random() * 3)],
+        phoneNumber: `+34${600 + id}${String(id).padStart(6, '0')}`,
+        subscription: ['basico', 'estudiante', 'profesional'][Math.floor(Math.random() * 3)],
         balance: parseFloat((Math.random() * 10000).toFixed(2)),
         isBlocked: Math.random() > 0.9,
     };
 }
 
-function mockTransaction(accountId) {
-    const sender = `acc_${Math.floor(Math.random() * 1000)}`;
-    const receiver = `acc_${Math.floor(Math.random() * 1000)}`;
+// Pool global de cuentas para transacciones coherentes
+const _mockAccountsPool = [
+    mockAccount(1, 'ES1111111111111111111111'),
+    mockAccount(2, 'ES2222222222222222222222'),
+    mockAccount(3, 'ES3333333333333333333333'),
+    mockAccount(4, 'ES4444444444444444444444'),
+    mockAccount(5, 'ES5555555555555555555555'),
+    mockAccount(6, 'ES6666666666666666666666'),
+    mockAccount(7, 'ES7777777777777777777777'),
+    mockAccount(8, 'ES8888888888888888888888'),
+    mockAccount(9, 'ES9999999999999999999999'),
+    mockAccount(10, 'ES1234567890123456789012'),
+];
+
+function mockTransaction(accountId, accountIban) {
+    const isIncoming = Math.random() > 0.5;
+    const otherAccount = _mockAccountsPool[Math.floor(Math.random() * _mockAccountsPool.length)];
+
+    // Evitar transacciones consigo mismo
+    const otherIban = otherAccount.iban !== accountIban
+        ? otherAccount.iban
+        : _mockAccountsPool[(Math.floor(Math.random() * _mockAccountsPool.length) + 1) % _mockAccountsPool.length].iban;
+
+    const amount = Math.floor(25 + Math.random() * 3000); // 25-3025 EUR (rango más amplio)
+
+    // Generar fechas del mes anterior (diciembre 2025 para enero 2026)
+    const now = new Date();
+    const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const year = previousMonth.getFullYear();
+    const month = previousMonth.getMonth();
+    const lastDay = new Date(year, month + 1, 0).getDate();
+
+    const gmt_time = new Date(
+        year,
+        month,
+        1 + Math.floor(Math.random() * lastDay), // día aleatorio del mes
+        Math.floor(Math.random() * 24), // hora
+        Math.floor(Math.random() * 60), // minuto
+        Math.floor(Math.random() * 60)  // segundo
+    );
+
+    // Variedad de estados
+    const statuses = ['completed', 'completed', 'completed', 'pending', 'processing'];
+    const status = statuses[Math.floor(Math.random() * statuses.length)];
+
     return {
-        sender,
-        receiver,
-        quantity: Math.floor(Math.random() * 1000),
-        status: 'pending',
-        currency: 'USD',
-        sender_balance: parseFloat((Math.random() * 10000).toFixed(2)),
-        receiver_balance: parseFloat((Math.random() * 10000).toFixed(2)),
-        gmt_time: new Date().toISOString(),
-    };
-}
-
-module.exports = {
-    getAccount: async (id) => {
-        return mockAccount(id);
+        sender: isIncoming ? otherIban : accountIban,
+        receiver: isIncoming ? accountIban : otherIban,
+        quantity: amount,
+        amount: amount,
+        status: status,
+        currency: 'EUR',
+        description: isIncoming
+            ? `Transferencia recibida de ${otherAccount.name}`
+            : `Transferencia enviada a ${otherAccount.name}`,
+        sender_balance: parseFloat((5000 + Math.random() * 20000).toFixed(2)),
+        receiver_balance: parseFloat((5000 + Math.random() * 20000).toFixed(2)),
     },
 
-    getAllAccounts: async (count = 5) => {
-        // devuelve una lista de cuentas mock para pruebas
-        return Array.from({ length: count }).map((_, i) => mockAccount(String(i + 1)));
-    },
+        getAllAccounts: async (count = 5) => {
+            // Devuelve lista de cuentas mock para pruebas
+            return _mockAccountsPool.slice(0, Math.min(count, _mockAccountsPool.length));
+        },
 
-    getTransactions: async (accountId) => {
-        // return a list of 3 mock transactions
-        return Array.from({ length: 3 }).map(() => mockTransaction(accountId));
-    },
+            getTransactions: async (accountId) => {
+                // Encontrar la cuenta y su IBAN
+                const account = _mockAccountsPool.find(a => a.id === String(accountId) || a.iban === accountId);
+                const accountIban = account?.iban || accountId;
 
-    sendNotification: async (payload) => {
-        // simulate sending notification
-        return { ok: true, id: randomId(), payload };
-    },
+                // Generar 10-20 transacciones coherentes para el mes (mix de incoming/outgoing)
+                const txCount = 10 + Math.floor(Math.random() * 11);
+                return { ok: true, id: randomId(), payload };
+            },
 };

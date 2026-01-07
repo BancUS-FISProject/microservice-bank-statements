@@ -5,7 +5,8 @@ const fetchFn =
 const BASE_URL = process.env.BANK_STATEMENTS_BASE_URL || 'http://127.0.0.1:3000';
 const API_PREFIX = '/v1/bankstatements';
 const testAccountId = 'test-account-123';
-const testIban = 'ES1234567890123456789012';
+const testIban = 'ES1111111111111111111111';
+const testJWTToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEiLCJuYW1lIjoiVXNlciAxIiwiZW1haWwiOiJ1c2VyMUBleGFtcGxlLmNvbSIsImlibmFuIjoiRVMxMTExMTExMTExMTExMTExMTExMTExIiwicGhvbmVOdW1iZXIiOiIrMzQ2MDEwMDAwMDEiLCJzdWJzY3JpcHRpb24iOiJiYXNpY28iLCJpYXQiOjE3Njc3ODIzNTZ9.test';
 let createdStatementId = null;
 let apiAvailable = true;
 
@@ -13,16 +14,20 @@ let apiAvailable = true;
 jest.setTimeout(20000);
 
 // Helper para hacer peticiones HTTP y parsear JSON de forma segura
-async function http(method, path, body) {
+async function http(method, path, body, includeAuth = true) {
     if (!apiAvailable) {
         // Si ya sabemos que no hay API, devolvemos un objeto vacío.
         return { status: 0, json: async () => ({}) };
     }
 
     try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (includeAuth) {
+            headers['Authorization'] = `Bearer ${testJWTToken}`;
+        }
         const res = await fetchFn(`${BASE_URL}${path}`, {
             method,
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: body ? JSON.stringify(body) : undefined,
         });
         return res;
@@ -71,19 +76,19 @@ describe('Bank Statements API – tests externos (servicio real)', () => {
 
     it('POST /v1/bankstatements/generate crea un statement con datos de prueba', async () => {
         const res = await http('POST', `${API_PREFIX}/generate`, {
-            accountId: testAccountId,
+            accountId: testIban,
             month: '2025-11',
             transactions: [
                 {
-                    sender: 'sender-test',
-                    receiver: testAccountId,
+                    sender: 'ES2222222222222222222222',
+                    receiver: testIban,
                     amount: 150.0,
                     currency: 'EUR',
                     gmt_time: '2025-11-10T12:00:00Z',
                 },
                 {
-                    sender: testAccountId,
-                    receiver: 'receiver-test',
+                    sender: testIban,
+                    receiver: 'ES2222222222222222222222',
                     amount: 50.0,
                     currency: 'EUR',
                     gmt_time: '2025-11-15T14:00:00Z',
@@ -103,8 +108,8 @@ describe('Bank Statements API – tests externos (servicio real)', () => {
         createdStatementId = body.statement._id;
     });
 
-    it('GET /v1/bankstatements/by-account/:accountId devuelve meses disponibles', async () => {
-        const res = await http('GET', `${API_PREFIX}/by-account/${testAccountId}`);
+    it('GET /v1/bankstatements/by-iban/:iban devuelve meses disponibles', async () => {
+        const res = await http('GET', `${API_PREFIX}/by-iban/${testIban}`);
 
         if (skipIfNoApi()) return;
 
@@ -141,13 +146,14 @@ describe('Bank Statements API – tests externos (servicio real)', () => {
     });
 
     it('GET /v1/bankstatements/by-iban con IBAN válido pero no existente devuelve 404', async () => {
-        const res = await http('GET', `${API_PREFIX}/by-iban?iban=${testIban}&month=2025-11`);
+        const nonExistentIban = 'ES9999999999999999999999';
+        const res = await http('GET', `${API_PREFIX}/by-iban/${nonExistentIban}`);
 
         if (skipIfNoApi()) return;
 
         expect(res.status).toBe(404);
         const body = await res.json();
-        expect(body).toHaveProperty('message', 'El IBAN no registra estados de cuenta correspondientes a este mes');
+        expect(body).toHaveProperty('error');
     });
 
     it('PUT /v1/bankstatements/account/:accountId/statements reemplaza statements', async () => {

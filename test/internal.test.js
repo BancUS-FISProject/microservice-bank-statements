@@ -60,10 +60,11 @@ describe('Bank Statements service API', () => {
         expect([201, 500]).toContain(res.status);
     });
 
-    it('GET /v1/bankstatements/by-account/:accountId retorna 200 o 500', async () => {
-        const res = await request(app).get(`/v1/bankstatements/by-account/${testAccountId}`);
+    it('GET /v1/bankstatements/by-iban/:iban retorna 200 o 500', async () => {
+        const testIban = 'ES1111111111111111111111';
+        const res = await request(app).get(`/v1/bankstatements/by-iban/${testIban}`);
 
-        expect([200, 500]).toContain(res.status);
+        expect([200, 404, 500]).toContain(res.status);
         if (res.status === 200) {
             expect(res.body).toHaveProperty('months');
             expect(Array.isArray(res.body.months)).toBe(true);

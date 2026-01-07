@@ -4,9 +4,18 @@ const monthPattern = /^[0-9]{4}-(0[1-9]|1[0-2])$/; // YYYY-MM, mes 01-12
 const ibanEsPattern = /^ES\d{22}$/; // ES + 22 digits (total 24 chars)
 
 module.exports = {
-    getByAccount: {
-        params: Joi.object({ accountId: Joi.string().required() }),
-        query: Joi.object({ from: Joi.string().isoDate().optional(), to: Joi.string().isoDate().optional() })
+    getByIban: {
+        params: Joi.object({
+            iban: Joi.string().trim().uppercase().pattern(ibanEsPattern).required().messages({
+                'string.pattern.base': 'El IBAN no tiene el formato correcto',
+                'string.empty': 'El IBAN no tiene el formato correcto',
+                'any.required': 'El IBAN no tiene el formato correcto'
+            })
+        }),
+        query: Joi.object({
+            from: Joi.string().pattern(monthPattern).optional(),
+            to: Joi.string().pattern(monthPattern).optional()
+        })
     },
     getById: {
         params: Joi.object({ id: Joi.string().pattern(/^[0-9a-fA-F]{24}$/).required() })

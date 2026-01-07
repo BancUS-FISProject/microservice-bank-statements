@@ -2,8 +2,8 @@
 # Pruebas para endpoints de Bank Statements (REST Client)
 # Casos principales del router (incluye búsqueda por IBAN+mes)
 
-### 1) Obtener meses disponibles por cuenta (GET)
-GET http://localhost:3000/v1/bankstatements/by-account/19000
+### 1) Obtener meses disponibles por IBAN (GET)
+GET http://localhost:3000/v1/bankstatements/by-iban/ES1200000000000000000000
 Accept: application/json
 
 ### 2) Obtener detalle de un statement por id (GET)

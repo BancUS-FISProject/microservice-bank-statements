@@ -1,11 +1,11 @@
 // Repositorio con Mongoose para bank-statements
 const BankStatement = require('../../db/models/bankStatement');
 
-async function findByAccount(accountId, filters = {}) {
-    console.log(`[repo] findByAccount -> accountId=${accountId}, filters=${JSON.stringify(filters)}`);
+async function findByIban(iban, filters = {}) {
+    console.log(`[repo] findByIban -> iban=${iban}, filters=${JSON.stringify(filters)}`);
 
     const query = {
-        'account.id': accountId
+        'account.iban': iban
     };
     // Filtro opcional por rango de meses (YYYY-MM)
     if (filters.from) {
@@ -41,7 +41,7 @@ async function findById(id) {
 
 async function findByAccountYearMonth(accountId, year, month) {
     console.log(`[repo] findByAccountYearMonth -> accountId=${accountId}, year=${year}, month=${month}`);
-    return BankStatement.findOne({ 'account.id': accountId, year: Number(year), month: Number(month) }).lean();
+    return BankStatement.findOne({ 'account.iban': accountId, year: Number(year), month: Number(month) }).lean();
 }
 
 async function findByAccountNameYearMonth(accountName, year, month) {
@@ -62,13 +62,13 @@ async function deleteById(id) {
 async function replaceStatementsForAccount(accountId, statements = []) {
     console.log(`[repo] replaceStatementsForAccount -> accountId=${accountId}, count=${(statements || []).length}`);
     // eliminar statements existentes
-    await BankStatement.deleteMany({ 'account.id': accountId });
+    await BankStatement.deleteMany({ 'account.iban': accountId });
 
     if (!Array.isArray(statements) || statements.length === 0) return [];
 
-    // asegurar que cada statement tenga el campo account.id correcto
+    // asegurar que cada statement tenga el campo account.iban correcto
     const prepared = statements.map(s => {
-        const account = Object.assign({}, s.account || {}, { id: accountId });
+        const account = Object.assign({}, s.account || {}, { iban: accountId });
         return Object.assign({}, s, { account });
     });
 
@@ -93,4 +93,4 @@ async function appendTransaction(accountId, tx, opts = {}) {
     return saveStatement(stmt);
 }
 
-module.exports = { findByAccount, findById, saveStatement, appendTransaction, deleteById, replaceStatementsForAccount, findByAccountYearMonth, findByAccountNameYearMonth, findByIbanYearMonth };
+module.exports = { findByIban, findById, saveStatement, appendTransaction, deleteById, replaceStatementsForAccount, findByAccountYearMonth, findByAccountNameYearMonth, findByIbanYearMonth };

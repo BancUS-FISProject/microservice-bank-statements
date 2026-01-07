@@ -1,8 +1,8 @@
 const repo = require('../repositories/bankStatementsRepository');
 
-async function getByAccount(accountId, filters) {
-    console.log(`[service] getByAccount -> accountId=${accountId}`);
-    const items = await repo.findByAccount(accountId, filters);
+async function getByIbanMonths(iban, filters) {
+    console.log(`[service] getByIbanMonths -> iban=${iban}`);
+    const items = await repo.findByIban(iban, filters);
     const monthNames = [
         'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
         'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
@@ -79,12 +79,15 @@ async function generate() {
     console.log(`[service] generate (all accounts)`);
     const ms = require('../../lib/ms');
 
-    // determinar mes objetivo (formato YYYY-MM)
+    // determinar mes objetivo: MES ANTERIOR (el estado se genera el 1ro de cada mes con datos del mes pasado)
     const now = new Date();
-    const target = now.toISOString().slice(0, 7); // 'YYYY-MM'
-    const [yStr, mStr] = target.split('-');
-    const year = parseInt(yStr, 10);
-    const monthIndex = Math.max(0, parseInt(mStr, 10) - 1);
+    // Restar 1 mes para obtener el mes anterior
+    const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const year = previousMonth.getFullYear();
+    const monthIndex = previousMonth.getMonth(); // ya es 0-indexed
+    const target = `${year}-${String(monthIndex + 1).padStart(2, '0')}`; // formato 'YYYY-MM'
+
+    console.log(`[service] generate -> generando estado para mes anterior: ${target}`);
 
     // obtener todas las cuentas desde ms
     let accounts = [];
@@ -102,7 +105,11 @@ async function generate() {
 
     // helper que genera para una sola cuenta
     async function generateForAccount(accountObj) {
-        const accountId = accountObj && (accountObj.id || accountObj.accountId || accountObj.iban) || 'unknown';
+        // Priorizar IBAN como identificador principal
+        const accountId = accountObj && (accountObj.iban || accountObj.id || accountObj.accountId) || 'unknown';
+        const accountIban = accountObj && accountObj.iban;
+
+        console.log('[service] generateForAccount ->', { accountId, accountIban, name: accountObj?.name });
 
         // obtener transacciones para la cuenta
         let transactions = [];
@@ -116,6 +123,8 @@ async function generate() {
             console.error('[service] generate error getting transactions for', accountId, err.message || err);
         }
 
+        console.log(`[service] generateForAccount -> fetched ${transactions.length} transactions for ${accountId}`);
+
         // calcular rangos de fecha para el mes
         const date_start = new Date(year, monthIndex, 1);
         const date_end = new Date(year, monthIndex + 1, 0);
@@ -127,37 +136,55 @@ async function generate() {
             const raw = Number(t.quantity || t.amount || 0);
             const amount = Number.isNaN(raw) ? 0 : raw;
 
-            // classify transaction direction:
-            // 1) if receiver equals accountId -> incoming
-            // 2) else if sender equals accountId -> outgoing
-            // 3) else fallback to sign: positive -> incoming, negative -> outgoing
+            // Log para debug
+            console.log(`[TX] amount=${amount}, receiver=${t.receiver}, sender=${t.sender}, accountId=${accountId}, accountIban=${accountIban}`);
+
+            // classify transaction direction - comparar con IBAN y con ID
             let classified = false;
-            if (t.receiver && String(t.receiver) === String(accountId)) {
+            const receiverStr = String(t.receiver || '');
+            const senderStr = String(t.sender || '');
+            const accountIdStr = String(accountId);
+            const accountIbanStr = String(accountIban || '');
+
+            // Si esta cuenta es el receptor -> incoming
+            if ((receiverStr && receiverStr === accountIdStr) ||
+                (receiverStr && accountIbanStr && receiverStr === accountIbanStr)) {
                 total_incoming += Math.abs(amount);
                 classified = true;
-            } else if (t.sender && String(t.sender) === String(accountId)) {
+                console.log(`  -> INCOMING: +${Math.abs(amount)} (total_incoming=${total_incoming})`);
+            }
+            // Si esta cuenta es el emisor -> outgoing
+            else if ((senderStr && senderStr === accountIdStr) ||
+                (senderStr && accountIbanStr && senderStr === accountIbanStr)) {
                 total_outgoing += Math.abs(amount);
                 classified = true;
+                console.log(`  -> OUTGOING: -${Math.abs(amount)} (total_outgoing=${total_outgoing})`);
             }
+
+            // Fallback: clasificar por signo del monto
             if (!classified) {
-                if (amount > 0) total_incoming += amount;
-                else if (amount < 0) total_outgoing += Math.abs(amount);
+                if (amount > 0) {
+                    total_incoming += amount;
+                    console.log(`  -> INCOMING (by sign): +${amount} (total_incoming=${total_incoming})`);
+                } else if (amount < 0) {
+                    total_outgoing += Math.abs(amount);
+                    console.log(`  -> OUTGOING (by sign): -${Math.abs(amount)} (total_outgoing=${total_outgoing})`);
+                }
             }
-            console.log(` total_incoming=${total_incoming} total_outgoing=${total_outgoing}`);
+
             return {
                 date: t.gmt_time ? new Date(t.gmt_time) : new Date(),
                 amount,
-                currency: t.currency || 'USD',
+                currency: t.currency || 'EUR',
                 description: t.status || '',
             };
         });
 
-        console.log(`[service] generateForAccount -> ${accountId} mappedTxCount=${(mappedTx || []).length} total_incoming=${total_incoming} total_outgoing=${total_outgoing}`);
+        console.log(`[service] generateForAccount -> ${accountId} FINAL: mappedTxCount=${(mappedTx || []).length} total_incoming=${total_incoming} total_outgoing=${total_outgoing}`);
 
         const statement = {
             account: {
-                id: accountObj.id || accountObj.accountId || accountId,
-                iban: accountObj.iban || '',
+                iban: accountObj.iban || accountId || '',
                 name: accountObj.name || '',
                 email: accountObj.email || null,
             },
@@ -209,8 +236,8 @@ async function generate() {
 }
 
 // generate a single statement from provided transactions (or return existing)
-async function generateSingle({ accountId, month, transactions }) {
-    console.log('[service] generateSingle ->', accountId, month, Array.isArray(transactions) ? transactions.length : 0);
+async function generateSingle({ accountId, month, transactions, user }) {
+    console.log('[service] generateSingle ->', accountId, month, Array.isArray(transactions) ? transactions.length : 0, user ? '(with JWT)' : '(no JWT)');
     if (!accountId) throw new Error('accountId_required');
     if (!month) throw new Error('month_required');
 
@@ -254,23 +281,35 @@ async function generateSingle({ accountId, month, transactions }) {
         return {
             date: t.gmt_time ? new Date(t.gmt_time) : new Date(),
             amount,
-            currency: t.currency || 'USD',
+            currency: t.currency || 'EUR',
             description: t.status || '',
         };
     });
 
     const total = total_incoming + total_outgoing;
 
-    // try to enrich account data
-    let account = { id: accountId };
-    try {
-        const ms = require('../../lib/ms');
-        if (ms && typeof ms.getAccount === 'function') {
-            const acc = await ms.getAccount(accountId);
-            if (acc) account = Object.assign({}, account, acc);
+    // try to enrich account data - priorizar datos del JWT token
+    let account = { iban: accountId };
+
+    if (user && user.iban) {
+        // Usar datos del JWT token (para requests manuales del frontend)
+        account = {
+            iban: user.iban,
+            name: user.name || '',
+            email: user.email || ''
+        };
+        console.log('[service] generateSingle: using user data from JWT token');
+    } else {
+        // Fallback: llamar al microservicio de accounts (para scheduler automático)
+        try {
+            const ms = require('../../lib/ms');
+            if (ms && typeof ms.getAccount === 'function') {
+                const acc = await ms.getAccount(accountId);
+                if (acc) account = Object.assign({}, account, acc);
+            }
+        } catch (err) {
+            console.warn('[service] generateSingle: could not fetch account data', err.message || err);
         }
-    } catch (err) {
-        console.warn('[service] generateSingle: could not fetch account data', err.message || err);
     }
 
     const date_start = new Date(year, monthNum - 1, 1);
@@ -278,7 +317,6 @@ async function generateSingle({ accountId, month, transactions }) {
 
     const stmt = {
         account: {
-            id: account.id || accountId,
             iban: account.iban || '',
             name: account.name || '',
             email: account.email || null,
@@ -353,10 +391,10 @@ async function deleteByIdentifier(opts = {}) {
 async function updateStatements(accountId, statements) {
     console.log('[service] updateStatements -> accountId=', accountId, 'count=', Array.isArray(statements) ? statements.length : 0);
     if (!Array.isArray(statements)) throw new Error('statements_must_be_array');
-    // basic normalization: ensure account.id is set for each statement
+    // basic normalization: ensure account.iban is set for each statement
     const normalized = statements.map(s => {
         const st = Object.assign({}, s);
-        st.account = Object.assign({}, st.account || {}, { id: accountId });
+        st.account = Object.assign({}, st.account || {}, { iban: accountId });
         return st;
     });
     try {
@@ -368,4 +406,4 @@ async function updateStatements(accountId, statements) {
     }
 }
 
-module.exports = { getByAccount, getById, getByIbanMonth, generate, generateSingle, deleteByIdentifier, updateStatements };
+module.exports = { getByIbanMonths, getById, getByIbanMonth, generate, generateSingle, deleteByIdentifier, updateStatements };
