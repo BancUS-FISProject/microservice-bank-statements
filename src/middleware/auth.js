@@ -10,7 +10,7 @@ function extractUserFromToken(req, res, next) {
         const authHeader = req.headers.authorization;
 
         if (!authHeader) {
-            console.warn('[auth] No Authorization header found');
+            // No hay token - es válido para endpoints públicos
             req.user = null;
             return next();
         }

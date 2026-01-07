@@ -387,18 +387,32 @@ async function deleteByIdentifier(opts = {}) {
     throw e;
 }
 
-// replace the list of statements for an account
-async function updateStatements(accountId, statements) {
-    console.log('[service] updateStatements -> accountId=', accountId, 'count=', Array.isArray(statements) ? statements.length : 0);
+// delete statement by MongoDB ID
+async function deleteById(id) {
+    console.log('[service] deleteById ->', id);
+    if (!id) throw new Error('id_required');
+
+    try {
+        const deleted = await repo.deleteById(id);
+        return deleted;
+    } catch (err) {
+        console.error('[service] deleteById: delete error', err.message || err);
+        throw err;
+    }
+}
+
+// replace the list of statements for an account by IBAN
+async function updateStatements(iban, statements) {
+    console.log('[service] updateStatements -> iban=', iban, 'count=', Array.isArray(statements) ? statements.length : 0);
     if (!Array.isArray(statements)) throw new Error('statements_must_be_array');
     // basic normalization: ensure account.iban is set for each statement
     const normalized = statements.map(s => {
         const st = Object.assign({}, s);
-        st.account = Object.assign({}, st.account || {}, { iban: accountId });
+        st.account = Object.assign({}, st.account || {}, { iban: iban });
         return st;
     });
     try {
-        const out = await repo.replaceStatementsForAccount(accountId, normalized);
+        const out = await repo.replaceStatementsForAccount(iban, normalized);
         return out;
     } catch (err) {
         console.error('[service] updateStatements error', err);
@@ -406,4 +420,4 @@ async function updateStatements(accountId, statements) {
     }
 }
 
-module.exports = { getByIbanMonths, getById, getByIbanMonth, generate, generateSingle, deleteByIdentifier, updateStatements };
+module.exports = { getByIbanMonths, getById, getByIbanMonth, generate, generateSingle, deleteByIdentifier, deleteById, updateStatements };

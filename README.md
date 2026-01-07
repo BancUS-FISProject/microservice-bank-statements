@@ -1,166 +1,153 @@
-# Microservice of Bank Statements
-
-Microservicio para gestionar estados de cuenta y transacciones.
+# Microservice Bank Statements
 
 [![Build and Push Docker Image](https://github.com/BancUS-FISProject/microservice-bank-statements/actions/workflows/docker-build-push.yml/badge.svg)](https://github.com/BancUS-FISProject/microservice-bank-statements/actions)
 [![Run Tests](https://github.com/BancUS-FISProject/microservice-bank-statements/actions/workflows/test.yml/badge.svg)](https://github.com/BancUS-FISProject/microservice-bank-statements/actions)
 
-## 🚀 Automatización
+Microservicio para gestionar estados de cuenta bancarios con generación automatizada mensual de transacciones.
 
-Este proyecto incluye **GitHub Actions** que automáticamente:
-- ✅ Ejecuta tests en cada push/PR (Node 20 y 22)
-- ✅ Genera reportes de cobertura de código
-- ✅ Valida el código (npm audit)
-- ✅ Construye la imagen Docker
-- ✅ Pushea a Docker Hub con tags semánticos
+## 🚀 Características
 
-Ver detalles de configuración en [`.github/GITHUB_ACTIONS_SETUP.md`](.github/GITHUB_ACTIONS_SETUP.md)
+- **Generación automática**: Los estados de cuenta se generan el **día 1 de cada mes** con las transacciones del **mes anterior**
+- **Autenticación JWT**: Middleware opcional que extrae datos del usuario desde el token
+- **Validación IBAN**: Validación de IBANs españoles (ES + 22 dígitos)
+- **CI/CD**: GitHub Actions con tests automáticos y push a Docker Hub
+- **Mock data**: 10 cuentas con 10-20 transacciones cada una para pruebas
 
-## 📋 Contenido rápido
-- Servidor Express (CommonJS) en `src/server.js`.
-- Rutas y lógica en `src/bank-statements/` (router, controllers, services, repositories).
-- Conexión a MongoDB con Mongoose en `src/db/` y modelos en `src/db/models`.
+## 📋 Requisitos
 
-Requisitos
-- Node.js >= 24 (recomendado actualizar a >=18/20 para compatibilidad plena con las versiones de las dependencias)
+- Node.js >= 24
+- MongoDB 7+
 - Docker / Docker Compose (opcional)
 
-Instalación local
-1. Instalar dependencias:
+## ⚡ Inicio rápido
 
 ```bash
+# Instalar dependencias
 npm install
-```
 
-2. Configurar variables de entorno: crear `.env` en la raíz (ya existe un `.env` de ejemplo mínimo) con al menos:
-
-```
+# Configurar variables de entorno (.env)
 PORT=3000
 MONGO_URI=mongodb://localhost:27017/bankstatements
-```
 
-3. Ejecutar en desarrollo (usa `nodemon`):
-
-```bash
+# Desarrollo
 npm run dev
-```
 
-## 📡 Endpoints principales
-
-### Health Check
-- `GET /health` — Verifica el estado del servicio
-
-### API v1 - Bank Statements
-Ver especificación completa en [openapi/bank-statements.yaml](openapi/bank-statements.yaml)
-
-## 🧪 Pruebas
-
-El proyecto incluye pruebas unitarias e integración usando **Jest** y **Supertest**.
-
-### Tipos de pruebas
-
-#### Pruebas internas (`test/internal.test.js`)
-Pruebas de integración que usan `supertest` para probar la API directamente sin levantar servidor:
-- ✅ Health check del servicio
-- ✅ Crear statements con transacciones
-- ✅ Consultar por cuenta, ID e IBAN
-- ✅ Validaciones de formato (IBAN, mes)
-- ✅ Operaciones PUT y DELETE
-- ✅ Mensajes de error específicos
-
-#### Pruebas externas (`test/external.test.js`)
-Pruebas contra un servicio real corriendo (HTTP):
-- ✅ Todos los endpoints principales
-- ✅ Manejo de errores y casos edge
-- ✅ Se omiten automáticamente si el servicio no está disponible
-
-### Ejecutar pruebas
-
-```bash
-# Instalar dependencias de pruebas (si no lo has hecho)
-npm install
-
-# Ejecutar todas las pruebas
-npm test
-
-# Solo pruebas internas (sin servicio corriendo)
-npm run test:internal
-
-# Solo pruebas externas (requiere servicio en http://localhost:3000)
-npm run test:external
-```
-
-### Para pruebas externas
-
-1. Levanta el servicio en una terminal:
-```bash
-npm run dev
-```
-
-2. En otra terminal, ejecuta las pruebas:
-```bash
-npm run test:external
-```
-
-### Configuración
-
-- **Jest**: configuración en `jest.config.js`
-- **Timeout**: 20 segundos por defecto para pruebas async
-- **Coverage**: `npm test -- --coverage` para ver cobertura de código
-
-Ejecución con Docker Compose (desarrollo)
-1. Levantar servicios (app + mongo):
-
-```bash
+# Docker
 docker compose up -d --build
 ```
 
-2. Ver logs:
+## 📡 API Endpoints
+
+**Base URL**: `/v1/bankstatements`
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| `GET` | `/health` | Health check del servicio |
+| `GET` | `/by-iban/:iban` | Listar meses disponibles para un IBAN |
+| `GET` | `/by-iban?iban=...&month=YYYY-MM` | Obtener statement específico por IBAN y mes |
+| `GET` | `/:id` | Obtener statement por ID de MongoDB |
+| `POST` | `/generate` | Generar statements (bulk o single) |
+| `DELETE` | `/:id` | Eliminar statement por ID |
+| `PUT` | `/account/:iban/statements` | Reemplazar statements de una cuenta |
+
+Ver ejemplos de uso en [bankstatements.http](bankstatements.http)
+
+## 🧪 Testing
+
+**19 tests** usando Jest + Supertest:
+- **8 pruebas internas**: Integración sin servidor
+- **11 pruebas externas**: Contra servidor real
 
 ```bash
-docker compose logs -f app
-docker compose logs -f mongo
+# Todas las pruebas
+npm test
+
+# Solo internas
+npm run test:internal
+
+# Solo externas (requiere servidor en http://localhost:3000)
+npm run test:external
+
+# Con cobertura
+npm test -- --coverage
 ```
 
-Arquitectura / archivos importantes
-- `src/bank-statements/router.js` — define endpoints:
-	- GET  /v1/bankstatemens/by-account/:accountId  — listar meses disponibles para una cuenta (acepta query params `from` y `to`). Devuelve un objeto con `months` donde cada entrada incluye `year`, `month`, `month_name`, `count`, `statementId` (identificador representativo del statement del mes), `date_start` y `date_end`.
-	- GET  /v1/bankstatemens/:id — obtener detalle del `BankStatement` por su ObjectId (id generado al persistir).
-	- POST /v1/bankstatemens/generate — generar statements: sin body = bulk para todas las cuentas; con body = generar single a partir de `accountId`, `month` y `transactions`.
-	- DELETE /v1/bankstatemens/by-identifier — eliminar un statement pasando en el `body` `{ id }` OR `{ accountId, month }` OR `{ accountName, month }`.
-	- PUT /v1/bankstatemens/account/:accountId/statements — reemplaza la lista de statements de una cuenta (body: array de statements).
-- `src/bank-statements/controllers` — controladores HTTP.
-- `src/bank-statements/services` — lógica de negocio (usa el repositorio).
-- `src/bank-statements/repositories` — persistencia (usa Mongoose).
-- `src/db/models/bankStatement.js` — modelo `BankStatement` con campos:
-	- `account` (subdocument con `id`, `iban`, `name`, `email`)
-	- `date_start` (Date)
-	- `date_end` (Date)
-	- `transactions` (Array of { date, amount, currency, description })
-- `src/db/models/monthInterval.js` — modelo `MonthInterval` con:
-	- `month` (Number), `date_start`, `date_end`, `year`.
+## 🏗️ Arquitectura
 
-Archivo de pruebas (REST Client)
-- `bankstatements.http` contiene ejemplos para probar los endpoints desde la extensión REST Client de VS Code.
+```
+src/
+├── bank-statements/
+│   ├── router.js          # Rutas y validaciones
+│   ├── controllers/       # Handlers HTTP
+│   ├── services/          # Lógica de negocio
+│   └── repositories/      # Persistencia MongoDB
+├── db/
+│   └── models/
+│       └── bankStatement.js  # Schema Mongoose
+├── middleware/
+│   ├── auth.js            # Extractor JWT
+│   └── validate.js        # Validador Joi
+├── validators/            # Schemas de validación
+└── lib/
+    └── scheduler/
+        └── bankStatementsCron.js  # Cron mensual
+```
 
-Validaciones y middleware
-- Se añadió un middleware de validación reutilizable en `src/middleware/validate.js` que usa `joi` para validar `params`, `query` y `body`. Los esquemas están en `src/validators/bankStatementsValidators.js`.
+## 📊 Modelo de datos
 
-Notas sobre `statementId`
-- El endpoint `GET /v1/bankstatemens/by-account/:accountId` ya no devuelve un array de `statementIds` por mes; ahora cada entrada mensual tiene un único campo `statementId` que representa el statement más relevante del mes (por defecto se toma el statement con `date_end` más reciente dentro del grupo).
+**BankStatement**:
+```javascript
+{
+  account: {
+    iban: String,           // ES + 22 dígitos
+    name: String,
+    email: String
+  },
+  date_start: Date,         // Inicio del mes
+  date_end: Date,           // Fin del mes
+  transactions: [{
+    date: Date,
+    amount: Number,
+    currency: String,
+    description: String
+  }],
+  total_incoming: Number,   // Total recibido
+  total_outgoing: Number,   // Total enviado
+  year: Number,
+  month: Number             // 1-12
+}
+```
 
-Pruebas con REST Client
-- Abre `bankstatements.http` en VS Code.
-- Instala la extensión "REST Client" si no la tienes.
-- Haz click en "Send Request" sobre cualquiera de las peticiones para ejecutarla y ver la respuesta en el panel lateral.
+## 🔐 Autenticación
 
-Notas y recomendaciones
-- Se creó un `.gitignore` para node, editores y artefactos.
-- Las dependencias incluyen `express`, `dotenv`, `mongoose` y `nodemon` (dev).
-- Si planeas producción, crear un Dockerfile/compose específico para production y usar `NODE_ENV=production`.
+JWT opcional extraído de `Authorization: Bearer <token>`:
+```javascript
+// Payload esperado
+{
+  id: String,
+  name: String,
+  email: String,
+  iban: String,
+  phoneNumber: String,
+  subscription: String
+}
+```
 
-Problemas conocidos
-- Algunas versiones de `mongoose` y `mongodb` requieren Node >= 18/20; con Node 16 aparecen advertencias de engine. Recomiendo actualizar Node para evitar incompatibilidades.
+El API Gateway verifica el token; el microservicio solo lo decodifica.
 
-Contacto
-- Repositorio: git@github.com:Edithct/microservice-bank-statements.git
+## 🐳 Docker
+
+```bash
+# Build y tag
+docker compose build
+docker tag microservice-bank-statements edithct/microservice-bank-statements:1.1.0
+
+# Push a Docker Hub
+docker push edithct/microservice-bank-statements:1.1.0
+docker push edithct/microservice-bank-statements:latest
+```
+
+## 👤 Autor
+
+**Edith Esther Cáceres Tafur**  
+Repositorio: [github.com/BancUS-FISProject/microservice-bank-statements](https://github.com/BancUS-FISProject/microservice-bank-statements)

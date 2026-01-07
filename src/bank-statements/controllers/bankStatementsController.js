@@ -105,11 +105,23 @@ async function deleteByIdentifier(req, res) {
     }
 }
 
+async function deleteById(req, res) {
+    const { id } = req.params;
+    try {
+        const deleted = await bankStatementsService.deleteById(id);
+        if (!deleted) return res.status(404).json({ error: 'not_found', message: 'Statement no encontrado' });
+        return res.json({ deleted: true, id });
+    } catch (err) {
+        console.error('[controller] deleteById error', err);
+        return res.status(500).json({ error: 'failed_to_delete' });
+    }
+}
+
 async function updateStatements(req, res) {
-    const { accountId } = req.params;
+    const { iban } = req.params;
     const statements = req.body;
     try {
-        const out = await bankStatementsService.updateStatements(accountId, statements);
+        const out = await bankStatementsService.updateStatements(iban, statements);
         return res.json({ updated: true, count: Array.isArray(out) ? out.length : 0, items: out });
     } catch (err) {
         console.error('[controller] updateStatements error', err);
@@ -118,6 +130,6 @@ async function updateStatements(req, res) {
     }
 }
 
-module.exports = { getByIbanMonths, getById, getByIbanMonth, generate, deleteByIdentifier, updateStatements };
+module.exports = { getByIbanMonths, getById, getByIbanMonth, generate, deleteByIdentifier, deleteById, updateStatements };
 
 

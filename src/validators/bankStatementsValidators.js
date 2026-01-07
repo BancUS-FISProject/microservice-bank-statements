@@ -59,8 +59,18 @@ module.exports = {
             month: Joi.string().pattern(monthPattern).optional()
         }).or('id', 'accountId', 'accountName').with('accountId', 'month').with('accountName', 'month')
     },
+
+    deleteById: {
+        params: Joi.object({
+            id: Joi.string().pattern(/^[0-9a-fA-F]{24}$/).required().messages({
+                'string.pattern.base': 'ID de MongoDB inválido',
+                'any.required': 'ID es requerido'
+            })
+        })
+    },
+
     updateStatements: {
-        params: Joi.object({ accountId: Joi.string().required() }),
+        params: Joi.object({ iban: Joi.string().required() }),
         body: Joi.array().items(Joi.object().required()).required()
     }
 };

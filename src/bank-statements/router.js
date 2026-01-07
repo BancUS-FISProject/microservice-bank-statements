@@ -22,10 +22,10 @@ router.get('/:id', validate(validators.getById), controller.getById);
 // POST /v1/bankstatements/generate -> generar puntual a partir de transacciones en body
 router.post('/generate', validate(validators.generate), controller.generate);
 
-// DELETE /v1/bankstatements/by-identifier -> eliminar pasando body { id } OR { accountId, month } OR { accountName, month }
-router.delete('/by-identifier', validate(validators.deleteByIdentifier), controller.deleteByIdentifier);
+// DELETE /v1/bankstatements/:id -> eliminar statement por ID de MongoDB
+router.delete('/:id', validate(validators.deleteById), controller.deleteById);
 
-// PUT /v1/bankstatements/account/{accountId}/statements -> reemplazar lista de estados de cuenta
-router.put('/account/:accountId/statements', validate(validators.updateStatements), controller.updateStatements);
+// PUT /v1/bankstatements/account/{iban}/statements -> reemplazar lista de estados de cuenta por IBAN
+router.put('/account/:iban/statements', validate(validators.updateStatements), controller.updateStatements);
 
 module.exports = router;

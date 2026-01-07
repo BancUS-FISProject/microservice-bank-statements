@@ -1,67 +1,83 @@
+# Pruebas API Bank Statements
+# Microservicio de Estados de Cuenta Bancarios
 
-# Pruebas para endpoints de Bank Statements (REST Client)
-# Casos principales del router (incluye búsqueda por IBAN+mes)
+@baseUrl = http://localhost:3000/v1/bankstatements
+@testIban = ES1111111111111111111111
+@testId = 695e382baa7e4a20cbc2dcf8
 
-### 1) Obtener meses disponibles por IBAN (GET)
-GET http://localhost:3000/v1/bankstatements/by-iban/ES1200000000000000000000
+### Health Check
+GET http://localhost:3000/health
+
+### 1. Listar meses disponibles por IBAN
+GET {{baseUrl}}/by-iban/{{testIban}}
 Accept: application/json
 
-### 2) Obtener detalle de un statement por id (GET)
-GET http://localhost:3000/v1/bankstatements/6943094a20e1c401710b75b4
+### 2. Obtener statement por IBAN y mes específico
+GET {{baseUrl}}/by-iban?iban={{testIban}}&month=2025-12
 Accept: application/json
 
-### 3) Obtener statement por IBAN y mes (GET)
-GET http://localhost:3000/v1/bankstatements/by-iban?iban=ES8889183678889183671000&month=2025-09
+### 3. Obtener statement por ID de MongoDB
+GET {{baseUrl}}/{{testId}}
 Accept: application/json
 
-### 4) Generar statement (POST) -> single (body) o bulk (sin body)
-POST http://localhost:3000/v1/bankstatements/generate
-Accept: application/json
+### 4. Generar statements (bulk) - Sin body usa scheduler automático
+POST {{baseUrl}}/generate
+Content-Type: application/json
+
+### 5. Generar statement manual (con transacciones)
+POST {{baseUrl}}/generate
 Content-Type: application/json
 
 {
-  "accountId": "101",
-  "month": "2025-12",
+  "accountId": "ES2222222222222222222222",
+  "month": "2025-11",
   "transactions": [
-    { "sender": "x", "receiver": "101", "amount": 200.0, "currency": "USD", "gmt_time": "2025-12-05T12:00:00Z" }
+    {
+      "sender": "ES3333333333333333333333",
+      "receiver": "ES2222222222222222222222",
+      "amount": 250.50,
+      "currency": "EUR",
+      "status": "completed",
+      "gmt_time": "2025-11-15T10:30:00Z"
+    },
+    {
+      "sender": "ES2222222222222222222222",
+      "receiver": "ES4444444444444444444444",
+      "amount": 100.00,
+      "currency": "EUR",
+      "status": "completed",
+      "gmt_time": "2025-11-20T14:00:00Z"
+    }
   ]
 }
 
-### 5) Eliminar por identificador (DELETE) -> body: id OR accountId+month OR accountName+month
-DELETE http://localhost:3000/v1/bankstatements/by-identifier
-Accept: application/json
-Content-Type: application/json
+### 6. Eliminar statement por ID de MongoDB
+DELETE {{baseUrl}}/{{testId}}
 
-{
-  "accountId": "101",
-  "month": "2025-12"
-}
-
-### 6) Reemplazar lista de statements de una cuenta (PUT)
-PUT http://localhost:3000/v1/bankstatements/account/101/statements
-Accept: application/json
+### 7. Reemplazar statements de una cuenta (por IBAN)
+PUT {{baseUrl}}/account/{{testIban}}/statements
 Content-Type: application/json
 
 [
   {
-    "account": { "iban": "ES1200000000000000000000", "name": "Cuenta Prueba", "email": "test@example.com" },
-    "date_start": "2025-12-01T00:00:00.000Z",
-    "date_end": "2025-12-31T23:59:59.999Z",
+    "account": {
+      "iban": "{{testIban}}",
+      "name": "Usuario Test",
+      "email": "test@example.com"
+    },
+    "date_start": "2025-10-01T00:00:00.000Z",
+    "date_end": "2025-10-31T23:59:59.999Z",
     "transactions": [
-      { "date": "2025-12-05T12:00:00.000Z", "amount": 100.5, "currency": "USD", "description": "Ingreso prueba" }
+      {
+        "date": "2025-10-05T12:00:00.000Z",
+        "amount": 500,
+        "currency": "EUR",
+        "description": "completed"
+      }
     ],
-    "total_incoming": 100.5,
+    "total_incoming": 500,
     "total_outgoing": 0,
     "year": 2025,
-    "month": 12
+    "month": 10
   }
 ]
-
-### 7) Eliminar un estado de cuenta por id (DELETE)
-
-DELETE http://localhost:3000/v1/bankstatements/6943094020e1c401710b75a8
-
-### 1) Obtener meses disponibles por cuenta (GET)
-GET http://localhost:3000/health
-Accept: application/json
-
