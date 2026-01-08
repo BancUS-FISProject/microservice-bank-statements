@@ -12,7 +12,35 @@ const { connect } = require('./db');
 
 function createApp() {
     const app = express();
+    
+    // Habilitar CORS para Swagger UI
+    app.use((req, res, next) => {
+        res.header('Access-Control-Allow-Origin', '*');
+        res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+        
+        // Manejar preflight requests
+        if (req.method === 'OPTIONS') {
+            return res.sendStatus(200);
+        }
+        next();
+    });
+    
     app.use(express.json());
+
+    // Middleware de logging para ver todas las peticiones y respuestas
+    app.use((req, res, next) => {
+        const start = Date.now();
+        const originalJson = res.json;
+
+        res.json = function (data) {
+            const duration = Date.now() - start;
+            console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} → ${res.statusCode} (${duration}ms)`);
+            return originalJson.call(this, data);
+        };
+
+        next();
+    });
 
     // Ruta base
     app.get('/', (req, res) => {

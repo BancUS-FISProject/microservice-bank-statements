@@ -46,43 +46,31 @@ async function getByIbanMonth(req, res) {
     const user = req.user;
 
     try {
-        let detail = await bankStatementsService.getByIbanMonth(iban, month);
+        const detail = await bankStatementsService.getByIbanMonth(iban, month);
 
-        // Si no se encuentra el statement, intentar generarlo automáticamente
+        // Si no se encuentra el statement, retornar 404
         if (!detail) {
-            console.log(`[controller] Statement no encontrado para ${iban} - ${month}, generando...`);
-            try {
-                // Generar statement para el mes solicitado
-                const stmt = await bankStatementsService.generateSingle({
-                    accountId: iban,
-                    month,
-                    transactions: [], // Usar microservicio para obtener transacciones
-                    user
-                });
-
-                // Retornar el statement recién generado
-                return res.status(201).json({
-                    iban,
-                    month,
-                    detail: stmt,
-                    generated: true,
-                    message: 'Statement generado automáticamente'
-                });
-            } catch (genErr) {
-                console.error('[controller] Error al generar statement automáticamente:', genErr);
-                // Si falla la generación, retornar 404 original
-                return res.status(404).json({
-                    error: 'not_found',
-                    message: 'El IBAN no registra estados de cuenta correspondientes a este mes y no se pudo generar automáticamente'
-                });
-            }
+            console.log(`[controller] Statement no encontrado para ${iban} - ${month}`);
+            return res.status(404).json({
+                error: 'not_found',
+                message: `No se encontró estado de cuenta para el IBAN ${iban} en el mes ${month}`
+            });
         }
 
-        return res.json({ iban, month, detail });
+        // Retornar el statement encontrado
+        return res.status(200).json({ iban, month, detail });
     } catch (err) {
         console.error('[controller] getByIbanMonth error', err);
-        if (err && err.message === 'invalid_month_format') return res.status(400).json({ error: 'invalid_month_format' });
-        return res.status(500).json({ error: 'failed_to_get_by_iban_month' });
+        if (err && err.message === 'invalid_month_format') {
+            return res.status(400).json({
+                error: 'invalid_month_format',
+                message: 'El formato del mes debe ser YYYY-MM'
+            });
+        }
+        return res.status(500).json({
+            error: 'failed_to_get_by_iban_month',
+            message: 'Error al obtener el estado de cuenta'
+        });
     }
 }
 
@@ -147,56 +135,36 @@ async function deleteById(req, res) {
     }
 }
 
-async function updateStatements(req, res) {
-    const { iban } = req.params;
+async function updateStatement(req, res) {
+    const { id } = req.params;
+    const updateData = req.body;
     const user = req.user;
-    const token = req.headers.authorization;
 
-    console.log('[controller] updateStatements -> iban:', iban);
-    console.log('[controller] updateStatements -> token presente:', !!token);
+    console.log('[controller] updateStatement -> id:', id);
+    console.log('[controller] updateStatement -> updateData:', updateData);
 
     try {
-        // Verificar que el IBAN solicitado coincida con el del usuario autenticado
-        if (user && user.iban && user.iban !== iban) {
-            return res.status(403).json({
-                error: 'forbidden',
-                message: 'No tienes permiso para actualizar estados de cuenta para este IBAN'
-            });
-        }
+        const result = await bankStatementsService.updateStatementById(id, updateData);
 
-        const result = await bankStatementsService.updateStatements(iban, user, token);
-
-        if (result.updated) {
-            return res.status(200).json({
-                message: 'Estado de cuenta actualizado exitosamente',
-                updated: true,
-                statement: result.statement
-            });
-        }
-
-        if (result.created) {
-            return res.status(201).json({
-                message: 'Estado de cuenta creado exitosamente',
-                created: true,
-                statement: result.statement
-            });
-        }
-
-        return res.json(result);
-    } catch (err) {
-        console.error('[controller] updateStatements error', err);
-
-        if (err && err.message === 'error_fetching_transactions') {
-            return res.status(502).json({
-                error: 'error_fetching_transactions',
-                message: 'No se pudieron obtener las transacciones del servicio externo'
-            });
-        }
-
-        if (err && err.message === 'no_transactions_found') {
+        if (!result) {
             return res.status(404).json({
-                error: 'no_transactions_found',
-                message: 'No se encontraron transacciones para actualizar el estado de cuenta'
+                error: 'not_found',
+                message: 'Statement no encontrado'
+            });
+        }
+
+        return res.status(200).json({
+            message: 'Estado de cuenta actualizado exitosamente',
+            updated: true,
+            statement: result
+        });
+    } catch (err) {
+        console.error('[controller] updateStatement error', err);
+
+        if (err && err.message === 'invalid_id') {
+            return res.status(400).json({
+                error: 'invalid_id',
+                message: 'El ID proporcionado no es válido'
             });
         }
 
@@ -271,6 +239,6 @@ async function generateFromCurrentMonth(req, res) {
     }
 }
 
-module.exports = { getByIbanMonths, getById, getByIbanMonth, generate, deleteByIdentifier, deleteById, updateStatements, generateFromCurrentMonth };
+module.exports = { getByIbanMonths, getById, getByIbanMonth, generate, deleteByIdentifier, deleteById, updateStatement, generateFromCurrentMonth };
 
 

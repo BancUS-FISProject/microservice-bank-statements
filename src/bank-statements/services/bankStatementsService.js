@@ -748,4 +748,48 @@ async function generateFromCurrentMonth(iban, user, token = null) {
     }
 }
 
-module.exports = { getByIbanMonths, getById, getByIbanMonth, generate, generateSingle, deleteByIdentifier, deleteById, updateStatements, generateFromCurrentMonth };
+/**
+ * updateStatementById(id, updateData)
+ * - Actualiza un statement existente por su ID de MongoDB
+ * - Permite actualizar transactions, total_incoming, total_outgoing
+ */
+async function updateStatementById(id, updateData) {
+    console.log(`[service] updateStatementById -> id=${id}`);
+
+    if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+        throw new Error('invalid_id');
+    }
+
+    // Preparar datos de actualización
+    const dataToUpdate = {};
+
+    if (updateData.transactions !== undefined) {
+        dataToUpdate.transactions = updateData.transactions;
+    }
+
+    if (updateData.total_incoming !== undefined) {
+        dataToUpdate.total_incoming = updateData.total_incoming;
+    }
+
+    if (updateData.total_outgoing !== undefined) {
+        dataToUpdate.total_outgoing = updateData.total_outgoing;
+    }
+
+    console.log('[service] updateStatementById -> campos a actualizar:', Object.keys(dataToUpdate));
+
+    try {
+        const updated = await repo.updateById(id, dataToUpdate);
+        if (!updated) {
+            console.log('[service] updateStatementById -> statement no encontrado');
+            return null;
+        }
+
+        console.log('[service] updateStatementById -> statement actualizado exitosamente');
+        return updated;
+    } catch (err) {
+        console.error('[service] updateStatementById error:', err.message || err);
+        throw err;
+    }
+}
+
+module.exports = { getByIbanMonths, getById, getByIbanMonth, generate, generateSingle, deleteByIdentifier, deleteById, updateStatements, updateStatementById, generateFromCurrentMonth };

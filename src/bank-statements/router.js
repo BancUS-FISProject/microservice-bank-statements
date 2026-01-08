@@ -25,8 +25,8 @@ router.post('/generate', validate(validators.generate), controller.generate);
 // DELETE /v1/bankstatements/:id -> eliminar statement por ID de MongoDB
 router.delete('/:id', validate(validators.deleteById), controller.deleteById);
 
-// PUT /v1/bankstatements/account/{iban}/statements -> reemplazar lista de estados de cuenta por IBAN
-router.put('/account/:iban/statements', validate(validators.updateStatements), controller.updateStatements);
+// PUT /v1/bankstatements/:id -> actualizar statement por ID de MongoDB
+router.put('/:id', validate(validators.updateStatement), controller.updateStatement);
 
 // POST /v1/bankstatements/generate-current -> generar estado de cuenta del mes actual desde transacciones
 router.post('/generate-current', validate(validators.generateFromCurrentMonth), controller.generateFromCurrentMonth);

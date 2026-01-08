@@ -31,26 +31,24 @@ Content-Type: application/json
 ### 5. Generar statement manual (con transacciones)
 POST {{baseUrl}}/generate
 Content-Type: application/json
+Authorization: {{token}}
 
 {
   "accountId": "ES2222222222222222222222",
-  "month": "2025-11",
+  "month": 1,
+  "year": 2025,
   "transactions": [
     {
-      "sender": "ES3333333333333333333333",
-      "receiver": "ES2222222222222222222222",
+      "date": "2025-01-15T10:30:00.000Z",
       "amount": 250.50,
       "currency": "EUR",
-      "status": "completed",
-      "gmt_time": "2025-11-15T10:30:00Z"
+      "description": "Transferencia recibida"
     },
     {
-      "sender": "ES2222222222222222222222",
-      "receiver": "ES4444444444444444444444",
-      "amount": 100.00,
+      "date": "2025-01-20T14:00:00.000Z",
+      "amount": -100.00,
       "currency": "EUR",
-      "status": "completed",
-      "gmt_time": "2025-11-20T14:00:00Z"
+      "description": "Pago de servicios"
     }
   ]
 }
@@ -58,33 +56,28 @@ Content-Type: application/json
 ### 6. Eliminar statement por ID de MongoDB
 DELETE {{baseUrl}}/{{testId}}
 
-### 7. Reemplazar statements de una cuenta (por IBAN)
-PUT {{baseUrl}}/account/{{testIban}}/statements
+### 7. Actualizar statement por ID de MongoDB
+PUT {{baseUrl}}/{{testId}}
 Content-Type: application/json
 
-[
-  {
-    "account": {
-      "iban": "{{testIban}}",
-      "name": "Usuario Test",
-      "email": "test@example.com"
+{
+  "transactions": [
+    {
+      "date": "2025-10-05T12:00:00.000Z",
+      "amount": 500,
+      "currency": "EUR",
+      "description": "Pago recibido"
     },
-    "date_start": "2025-10-01T00:00:00.000Z",
-    "date_end": "2025-10-31T23:59:59.999Z",
-    "transactions": [
-      {
-        "date": "2025-10-05T12:00:00.000Z",
-        "amount": 500,
-        "currency": "EUR",
-        "description": "completed"
-      }
-    ],
-    "total_incoming": 500,
-    "total_outgoing": 0,
-    "year": 2025,
-    "month": 10
-  }
-]
+    {
+      "date": "2025-10-15T14:30:00.000Z",
+      "amount": -150.75,
+      "currency": "EUR",
+      "description": "Compra online"
+    }
+  ],
+  "total_incoming": 500,
+  "total_outgoing": 150.75
+}
 
 ### 8. POST /generate-current - Generar estado de cuenta del mes actual desde transacciones
 # Este es el endpoint que usa el botón "Simular" del frontend

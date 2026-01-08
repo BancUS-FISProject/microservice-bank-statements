@@ -4,12 +4,10 @@ info:
   version: 1.1.0
   description: |
     API para gestionar estados de cuenta bancarios con generación automatizada.
-    
-    Características principales:
-    - Generación automática mensual (día 1 de cada mes)
-    - Generación manual del mes actual desde transacciones externas
-    - Autenticación JWT
-    - Validación de IBAN español
+      Características principales:
+      - Generación manual del mes actual desde transacciones externas
+      - Autenticación JWT
+      - Validación de IBAN español
 
 servers:
   - url: http://localhost:3000
@@ -34,6 +32,15 @@ paths:
                   status:
                     type: string
                     example: ok
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "internal_server_error"
+                message: "Error al verificar el estado del servicio"
 
   /v1/bankstatements/by-iban/{iban}:
     get:
@@ -75,6 +82,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '400':
+          description: IBAN inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "invalid_iban"
+                message: "El formato del IBAN es inválido"
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "failed_to_get_by_iban"
+                message: "Error al obtener los meses disponibles"
 
   /v1/bankstatements/by-iban:
     get:
@@ -140,6 +165,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "failed_to_get_by_iban_month"
+                message: "Error al obtener el estado de cuenta"
 
   /v1/bankstatements/{id}:
     get:
@@ -179,6 +213,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                error: "invalid_id"
+                message: "El ID proporcionado no es válido"
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "failed_to_get_by_id"
+                message: "Error al obtener el estado de cuenta"
     
     delete:
       summary: Eliminar statement por ID
@@ -218,6 +264,100 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                error: "invalid_id"
+                message: "El ID proporcionado no es válido"
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "failed_to_delete"
+                message: "Error al eliminar el estado de cuenta"
+    
+    put:
+      summary: Actualizar statement por ID
+      description: Actualiza un estado de cuenta existente por su ID de MongoDB. Permite actualizar transacciones y totales.
+      tags:
+        - bankstatements
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[0-9a-fA-F]{24}$'
+          description: ID de MongoDB del statement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                transactions:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Transaction'
+                total_incoming:
+                  type: number
+                  description: Total de dinero recibido
+                total_outgoing:
+                  type: number
+                  description: Total de dinero enviado
+            example:
+              transactions:
+                - date: "2026-01-15T10:30:00.000Z"
+                  amount: 250.50
+                  currency: "EUR"
+                  description: "Transferencia recibida"
+              total_incoming: 1500.50
+              total_outgoing: 800.00
+      responses:
+        '200':
+          description: Statement actualizado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Estado de cuenta actualizado exitosamente"
+                  updated:
+                    type: boolean
+                    example: true
+                  statement:
+                    $ref: '#/components/schemas/BankStatement'
+        '400':
+          description: ID inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "invalid_id"
+                message: "El ID proporcionado no es válido"
+        '404':
+          description: Statement no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "not_found"
+                message: "Statement no encontrado"
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "failed_to_update"
+                message: "Error al actualizar el estado de cuenta"
 
   /v1/bankstatements/generate:
     post:
@@ -238,30 +378,65 @@ paths:
                 accountId:
                   type: string
                   description: IBAN de la cuenta
+                  example: "ES2222222222222222222222"
                 month:
-                  type: string
-                  pattern: '^\d{4}-(0[1-9]|1[0-2])$'
-                  description: Mes en formato YYYY-MM
+                  type: integer
+                  minimum: 1
+                  maximum: 12
+                  description: Mes (1-12)
+                  example: 1
+                year:
+                  type: integer
+                  minimum: 2020
+                  maximum: 2100
+                  description: Año
+                  example: 2026
                 transactions:
                   type: array
+                  description: Array de transacciones
                   items:
                     type: object
+                    required:
+                      - date
+                      - amount
+                      - currency
                     properties:
-                      sender:
-                        type: string
-                      receiver:
-                        type: string
-                      amount:
-                        type: number
-                      quantity:
-                        type: number
-                      currency:
-                        type: string
-                      status:
-                        type: string
-                      gmt_time:
+                      date:
                         type: string
                         format: date-time
+                        description: Fecha de la transacción en formato ISO 8601
+                        example: "2026-01-15T10:30:00.000Z"
+                      amount:
+                        type: number
+                        description: Monto de la transacción
+                        example: 250.50
+                      currency:
+                        type: string
+                        description: Moneda de la transacción
+                        example: "EUR"
+                      description:
+                        type: string
+                        description: Descripción opcional de la transacción
+                        example: "Transferencia recibida"
+            examples:
+              withTransactions:
+                summary: Con transacciones
+                value:
+                  accountId: "ES2222222222222222222222"
+                  month: 1
+                  year: 2026
+                  transactions:
+                    - date: "2026-01-15T10:30:00.000Z"
+                      amount: 250.50
+                      currency: "EUR"
+                      description: "Transferencia recibida"
+                    - date: "2026-01-20T14:00:00.000Z"
+                      amount: 100.00
+                      currency: "EUR"
+                      description: "Pago de servicios"
+              bulk:
+                summary: Bulk (sin body)
+                value: {}
       responses:
         '201':
           description: Statement(s) generado(s) exitosamente
@@ -289,6 +464,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                error: "month_in_progress"
+                message: "No se puede generar el estado de cuenta para un mes en curso"
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "failed_to_generate"
+                message: "Error al generar el estado de cuenta"
 
   /v1/bankstatements/generate-current:
     post:
@@ -359,7 +546,7 @@ paths:
                       total_incoming: 1500.50
                       total_outgoing: 800.00
         '200':
-          description: Ya existe un estado de cuenta para este mes
+          description: Estado de cuenta actualizado con las transacciones más recientes
           content:
             application/json:
               schema:
@@ -367,16 +554,30 @@ paths:
                 properties:
                   message:
                     type: string
-                  existing:
+                    example: "Estado de cuenta actualizado con las transacciones más recientes"
+                  updated:
                     type: boolean
+                    example: true
                   statement:
                     $ref: '#/components/schemas/BankStatement'
+        '400':
+          description: IBAN inválido o datos de entrada incorrectos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "invalid_iban"
+                message: "El formato del IBAN es inválido"
         '403':
           description: Sin permiso para generar estados de cuenta para este IBAN
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                error: "forbidden"
+                message: "No tienes permiso para generar estados de cuenta para este IBAN"
         '404':
           description: No se encontraron transacciones para el mes actual
           content:
@@ -409,50 +610,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /v1/bankstatements/account/{iban}/statements:
-    put:
-      summary: Reemplazar estados de cuenta de una cuenta
-      description: Reemplaza la lista completa de estados de cuenta para un IBAN específico
-      tags:
-        - bankstatements
-      parameters:
-        - name: iban
-          in: path
-          required: true
-          schema:
-            type: string
-          description: IBAN de la cuenta
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: array
-              items:
-                $ref: '#/components/schemas/BankStatement'
-      responses:
-        '200':
-          description: Statements reemplazados exitosamente
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  updated:
-                    type: boolean
-                  count:
-                    type: integer
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/BankStatement'
-        '400':
-          description: Body inválido (debe ser un array)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
 components:
   schemas:
     MonthSummary:
@@ -461,7 +618,7 @@ components:
       properties:
         year:
           type: integer
-          example: 2026
+          example: 2025
         month:
           type: integer
           minimum: 1
