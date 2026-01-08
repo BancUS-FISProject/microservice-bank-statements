@@ -8,10 +8,11 @@ Microservicio para gestionar estados de cuenta bancarios con generación automat
 ## Características
 
 - **Generación automática**: Los estados de cuenta se generan el **día 1 de cada mes** con las transacciones del **mes anterior**
+- **Generación manual del mes actual**: Endpoint POST que consume transacciones y genera estados de cuenta del mes en curso
 - **Autenticación JWT**: Middleware opcional que extrae datos del usuario desde el token
 - **Validación IBAN**: Validación de IBANs españoles (ES + 22 dígitos)
 - **CI/CD**: GitHub Actions con tests automáticos
-- **Mock data**: 10 cuentas con 10-20 transacciones cada una para pruebas
+- **Mock data**: Transacciones de prueba para desarrollo (mes actual y anterior)
 
 ## 📋 Requisitos
 
@@ -47,8 +48,48 @@ docker compose up -d --build
 | `GET` | `/by-iban?iban=...&month=YYYY-MM` | Obtener statement específico por IBAN y mes |
 | `GET` | `/:id` | Obtener statement por ID de MongoDB |
 | `POST` | `/generate` | Generar statements (bulk o single) |
+| `POST` | `/generate-current` | **🆕 Generar estado de cuenta del mes actual** |
 | `DELETE` | `/:id` | Eliminar statement por ID |
 | `PUT` | `/account/:iban/statements` | Reemplazar statements de una cuenta |
+
+### 🆕 Generación de Estado de Cuenta del Mes Actual
+
+El endpoint `POST /v1/bankstatements/generate-current` consume el servicio de transacciones (`GET /v1/transactions/user/{iban}`) y genera un estado de cuenta del mes actual:
+
+- **Consume** transacciones del microservicio externo
+- **Filtra** solo las transacciones del mes en curso
+- **Calcula** totales de entradas/salidas automáticamente
+- **Persiste** el estado de cuenta en MongoDB
+- **Previene duplicados**: Verifica si ya existe un statement para el mes actual
+- **Envía notificación** al usuario (si el servicio está disponible)
+
+**Ejemplo de uso:**
+
+```bash
+POST /v1/bankstatements/generate-current
+Content-Type: application/json
+
+{
+  "iban": "ES1111111111111111111111"
+}
+```
+
+**Respuesta exitosa (201):**
+```json
+{
+  "message": "Estado de cuenta generado exitosamente",
+  "created": true,
+  "statement": {
+    "_id": "...",
+    "account": { "iban": "...", "name": "...", "email": "..." },
+    "year": 2026,
+    "month": 1,
+    "transactions": [...],
+    "total_incoming": 1500.50,
+    "total_outgoing": 800.00
+  }
+}
+```
 
 Ver ejemplos de uso en [bankstatements.http](bankstatements.http)
 

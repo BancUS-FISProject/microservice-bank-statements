@@ -72,5 +72,20 @@ module.exports = {
     updateStatements: {
         params: Joi.object({ iban: Joi.string().required() }),
         body: Joi.array().items(Joi.object().required()).required()
+    },
+
+    generateFromCurrentMonth: {
+        body: Joi.object({
+            iban: Joi.string()
+                .trim()
+                .uppercase()
+                .pattern(ibanEsPattern)
+                .required()
+                .messages({
+                    'string.pattern.base': 'El IBAN no tiene el formato correcto',
+                    'string.empty': 'El IBAN es requerido',
+                    'any.required': 'El IBAN es requerido'
+                })
+        })
     }
 };

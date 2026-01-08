@@ -1,5 +1,8 @@
 const express = require('express');
 const dotenv = require('dotenv');
+const path = require('path');
+const fs = require('fs');
+const YAML = require('yaml');
 
 dotenv.config();
 
@@ -19,6 +22,51 @@ function createApp() {
     // Health check endpoint
     app.get('/health', (req, res) => {
         res.json({ status: 'ok' });
+    });
+
+    // Servir documentación OpenAPI
+    const openapiPath = path.join(__dirname, '..', 'openapi', 'bank-statements.yaml');
+    app.get('/openapi.yaml', (req, res) => {
+        res.setHeader('Content-Type', 'text/yaml');
+        res.sendFile(openapiPath);
+    });
+
+    app.get('/openapi.json', (req, res) => {
+        const file = fs.readFileSync(openapiPath, 'utf8');
+        const doc = YAML.parse(file);
+        res.json(doc);
+    });
+
+    // Swagger UI HTML simple
+    app.get('/api-docs', (req, res) => {
+        res.send(`
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Bank Statements API - Swagger UI</title>
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+</head>
+<body>
+    <div id="swagger-ui"></div>
+    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+    <script>
+        window.onload = () => {
+            window.ui = SwaggerUIBundle({
+                url: '/openapi.json',
+                dom_id: '#swagger-ui',
+                deepLinking: true,
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIBundle.SwaggerUIStandalonePreset
+                ],
+                persistAuthorization: true,
+            });
+        };
+    </script>
+</body>
+</html>
+        `);
     });
 
     // Montar router de la versión 1 para bank statements

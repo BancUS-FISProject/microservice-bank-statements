@@ -1,61 +1,141 @@
 openapi: 3.0.3
 info:
-  title: Bank Statements API (spec de pruebas)
-  version: 1.0.0
-  description: OpenAPI para probar los endpoints definidos en `src/bank-statements/router.js`.
+  title: Bank Statements API
+  version: 1.1.0
+  description: |
+    API para gestionar estados de cuenta bancarios con generación automatizada.
+    
+    Características principales:
+    - Generación automática mensual (día 1 de cada mes)
+    - Generación manual del mes actual desde transacciones externas
+    - Autenticación JWT
+    - Validación de IBAN español
 
 servers:
   - url: http://localhost:3000
-    description: Servidor local (ajusta puerto según tu app)
+    description: Servidor local de desarrollo
+  - url: https://api.bancus.com
+    description: Servidor de producción
 
 paths:
-  /v1/bankstatements/by-account/{accountId}:
+  /health:
     get:
-      summary: Obtener extractos por cuenta
-      parameters:
-        - name: accountId
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: from
-          in: query
-          required: false
-          schema:
-            type: string
-        - name: to
-          in: query
-          required: false
-          schema:
-            type: string
+      summary: Health check del servicio
+      tags:
+        - health
       responses:
         '200':
-          description: Lista de bank statements para la cuenta
+          description: Servicio funcionando correctamente
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  accountId:
+                  status:
+                    type: string
+                    example: ok
+
+  /v1/bankstatements/by-iban/{iban}:
+    get:
+      summary: Listar meses disponibles por IBAN
+      description: Obtiene la lista de meses para los cuales existen estados de cuenta para un IBAN específico
+      tags:
+        - bankstatements
+      parameters:
+        - name: iban
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^ES[0-9]{22}$'
+          description: IBAN español (ES + 22 dígitos)
+      responses:
+        '200':
+          description: Lista de meses disponibles
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  iban:
                     type: string
                   months:
                     type: array
                     items:
                       $ref: '#/components/schemas/MonthSummary'
-              examples:
-                sample:
-                  value:
-                    accountId: "101"
-                    months:
-                      - year: 2025
-                        month: 12
-                        month_name: "Diciembre"
-                        count: 1
-                        statementId: "694308fa63d97fe88ce5cc3e"
-                        date_start: "2025-12-01T00:00:00Z"
-                        date_end: "2025-12-31T23:59:59Z"
         '404':
-          description: Cuenta no encontrada
+          description: No hay estados de cuenta para este IBAN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Sin permiso para acceder a este IBAN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /v1/bankstatements/by-iban:
+    get:
+      summary: Obtener statement por IBAN y mes
+      description: Obtiene el estado de cuenta específico para un IBAN y mes
+      tags:
+        - bankstatements
+      parameters:
+        - name: iban
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^ES[0-9]{22}$'
+          description: IBAN español
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+          description: Mes en formato YYYY-MM
+      responses:
+        '200':
+          description: Statement encontrado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  iban:
+                    type: string
+                  month:
+                    type: string
+                  detail:
+                    $ref: '#/components/schemas/BankStatement'
+        '201':
+          description: Statement generado automáticamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  iban:
+                    type: string
+                  month:
+                    type: string
+                  detail:
+                    $ref: '#/components/schemas/BankStatement'
+                  generated:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          description: Formato de mes o IBAN inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Statement no encontrado
           content:
             application/json:
               schema:
@@ -63,42 +143,77 @@ paths:
 
   /v1/bankstatements/{id}:
     get:
-      summary: Obtener un bank statement por id
+      summary: Obtener statement por ID
+      description: Obtiene un estado de cuenta específico por su ID de MongoDB
+      tags:
+        - bankstatements
       parameters:
         - name: id
           in: path
           required: true
           schema:
             type: string
+            pattern: '^[0-9a-fA-F]{24}$'
+          description: ID de MongoDB (24 caracteres hexadecimales)
       responses:
         '200':
-          description: Bank statement encontrado
+          description: Statement encontrado
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BankStatement'
-              examples:
-                sample:
-                  value:
-                    _id: "694308fa63d97fe88ce5cc3e"
-                    account:
-                      id: "101"
-                      name: "Cuenta Prueba"
-                      iban: "ES00 0000 0000 1234"
-                      email: "test@example.com"
-                    year: 2025
-                    month: 12
-                    date_start: "2025-12-01T00:00:00.000Z"
-                    date_end: "2025-12-31T23:59:59.999Z"
-                    total_incoming: 100.5
-                    total_outgoing: 0
-                    transactions:
-                      - date: "2025-12-05T12:00:00.000Z"
-                        amount: 100.5
-                        currency: "USD"
-                        description: "Ingreso prueba"
+                type: object
+                properties:
+                  id:
+                    type: string
+                  detail:
+                    $ref: '#/components/schemas/BankStatement'
         '404':
           description: Statement no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: ID inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    delete:
+      summary: Eliminar statement por ID
+      description: Elimina un estado de cuenta por su ID de MongoDB
+      tags:
+        - bankstatements
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[0-9a-fA-F]{24}$'
+          description: ID de MongoDB
+      responses:
+        '200':
+          description: Statement eliminado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: boolean
+                    example: true
+                  id:
+                    type: string
+        '404':
+          description: Statement no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: ID inválido
           content:
             application/json:
               schema:
@@ -108,8 +223,11 @@ paths:
     post:
       summary: Generar bank statements
       description: |
-        Si se llama sin body genera para todas las cuentas (bulk).
-        Si se llama con body `{ accountId, month, transactions }` genera un statement puntual (single).
+        **Sin body**: Genera statements para todas las cuentas (bulk - scheduler automático).
+        
+        **Con body**: Genera un statement puntual con transacciones proporcionadas.
+      tags:
+        - bankstatements
       requestBody:
         required: false
         content:
@@ -119,85 +237,191 @@ paths:
               properties:
                 accountId:
                   type: string
+                  description: IBAN de la cuenta
                 month:
                   type: string
-                  pattern: '^\\d{4}-\\d{2}$'
+                  pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+                  description: Mes en formato YYYY-MM
                 transactions:
                   type: array
                   items:
-                    $ref: '#/components/schemas/Transaction'
+                    type: object
+                    properties:
+                      sender:
+                        type: string
+                      receiver:
+                        type: string
+                      amount:
+                        type: number
+                      quantity:
+                        type: number
+                      currency:
+                        type: string
+                      status:
+                        type: string
+                      gmt_time:
+                        type: string
+                        format: date-time
       responses:
         '201':
-          description: Created (single or bulk)
+          description: Statement(s) generado(s) exitosamente
           content:
             application/json:
               schema:
-                type: object
-              examples:
-                single:
-                  value:
-                    created: true
-                    statement:
-                      $ref: '#/components/schemas/BankStatement'
-                bulk:
-                  value:
-                    created: true
-                    statements: []
+                oneOf:
+                  - type: object
+                    properties:
+                      created:
+                        type: boolean
+                      statement:
+                        $ref: '#/components/schemas/BankStatement'
+                  - type: object
+                    properties:
+                      created:
+                        type: boolean
+                      statements:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/BankStatement'
         '400':
-          description: Parámetros inválidos
+          description: Parámetros inválidos o mes en curso
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /v1/bankstatements/by-identifier:
-    delete:
-      summary: Eliminar un statement por identificador
-      description: Eliminar pasando en el `body` `{ id }` OR `{ accountId, month }` OR `{ accountName, month }`.
+  /v1/bankstatements/generate-current:
+    post:
+      summary: Generar estado de cuenta del mes actual
+      description: |
+        Consume el endpoint `GET /v1/transactions/user/{iban}` del microservicio de transacciones,
+        filtra las transacciones del mes en curso y genera un estado de cuenta persistido en MongoDB.
+        
+        **Características**:
+        - Consume transacciones del microservicio externo
+        - Filtra solo transacciones del mes actual
+        - Calcula totales automáticamente
+        - Persiste en MongoDB
+        - Previene duplicados (verifica si ya existe)
+        - Envía notificación al usuario
+        
+        **Autenticación requerida**: Este endpoint requiere un token JWT válido en el header Authorization.
+      tags:
+        - bankstatements
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
+              required:
+                - iban
               properties:
-                id:
+                iban:
                   type: string
-                accountId:
-                  type: string
-                accountName:
-                  type: string
-                month:
-                  type: string
-                  pattern: '^\\d{4}-\\d{2}$'
+                  pattern: '^ES[0-9]{22}$'
+                  description: IBAN español (ES + 22 dígitos)
+                  example: "ES1111111111111111111111"
       responses:
-        '200':
-          description: Eliminado correctamente
+        '201':
+          description: Estado de cuenta generado exitosamente
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  deleted:
-                    type: boolean
-                  id:
+                  message:
                     type: string
+                    example: "Estado de cuenta generado exitosamente"
+                  created:
+                    type: boolean
+                    example: true
+                  statement:
+                    $ref: '#/components/schemas/BankStatement'
+              examples:
+                success:
+                  value:
+                    message: "Estado de cuenta generado exitosamente"
+                    created: true
+                    statement:
+                      _id: "677d3a9f1234567890abcdef"
+                      account:
+                        iban: "ES1111111111111111111111"
+                        name: "Usuario"
+                        email: "user@example.com"
+                      date_start: "2026-01-01T00:00:00.000Z"
+                      date_end: "2026-01-31T23:59:59.999Z"
+                      year: 2026
+                      month: 1
+                      transactions: []
+                      total_incoming: 1500.50
+                      total_outgoing: 800.00
+        '200':
+          description: Ya existe un estado de cuenta para este mes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  existing:
+                    type: boolean
+                  statement:
+                    $ref: '#/components/schemas/BankStatement'
+        '403':
+          description: Sin permiso para generar estados de cuenta para este IBAN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '404':
-          description: No encontrado
+          description: No se encontraron transacciones para el mes actual
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "no_transactions_found"
+                  message:
+                    type: string
+                    example: "No se encontraron transacciones para el mes actual"
+        '502':
+          description: Error al obtener transacciones del servicio externo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "error_fetching_transactions"
+                  message:
+                    type: string
+        '500':
+          description: Error al generar el estado de cuenta
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /v1/bankstatemens/account/{accountId}/statements:
+  /v1/bankstatements/account/{iban}/statements:
     put:
-      summary: Reemplazar lista de estados de cuenta de una cuenta
+      summary: Reemplazar estados de cuenta de una cuenta
+      description: Reemplaza la lista completa de estados de cuenta para un IBAN específico
+      tags:
+        - bankstatements
       parameters:
-        - name: accountId
+        - name: iban
           in: path
           required: true
           schema:
             type: string
+          description: IBAN de la cuenta
       requestBody:
         required: true
         content:
@@ -208,7 +432,7 @@ paths:
                 $ref: '#/components/schemas/BankStatement'
       responses:
         '200':
-          description: Reemplazo completado
+          description: Statements reemplazados exitosamente
           content:
             application/json:
               schema:
@@ -223,7 +447,7 @@ paths:
                     items:
                       $ref: '#/components/schemas/BankStatement'
         '400':
-          description: Body inválido
+          description: Body inválido (debe ser un array)
           content:
             application/json:
               schema:
@@ -233,87 +457,144 @@ components:
   schemas:
     MonthSummary:
       type: object
+      description: Resumen de estados de cuenta disponibles para un mes específico
       properties:
         year:
           type: integer
+          example: 2026
         month:
           type: integer
+          minimum: 1
+          maximum: 12
+          example: 1
         month_name:
           type: string
+          example: "Enero"
         count:
           type: integer
-        statementId:
+          description: Número de statements para este mes
+          example: 1
+        Id:
           type: string
-          description: Identificador único (ObjectId) representativo del mes
-        date_start:
-          type: string
-          format: date-time
-        date_end:
-          type: string
-          format: date-time
+          description: ID representativo del statement de este mes
+          example: "677d3a9f1234567890abcdef"
       required: [year, month, count]
 
     BankStatement:
       type: object
+      description: Estado de cuenta bancario
       properties:
         _id:
           type: string
+          description: ID de MongoDB
+          example: "677d3a9f1234567890abcdef"
         account:
           type: object
           properties:
-            id:
-              type: string
             iban:
               type: string
+              pattern: '^ES[0-9]{22}$'
+              example: "ES1111111111111111111111"
             name:
               type: string
+              example: "Usuario"
             email:
               type: string
+              format: email
+              example: "user@example.com"
         date_start:
           type: string
           format: date-time
+          description: Fecha de inicio del periodo
+          example: "2026-01-01T00:00:00.000Z"
         date_end:
           type: string
           format: date-time
+          description: Fecha de fin del periodo
+          example: "2026-01-31T23:59:59.999Z"
         transactions:
           type: array
           items:
             $ref: '#/components/schemas/Transaction'
         total_incoming:
           type: number
+          description: Total de dinero recibido
+          example: 1500.50
         total_outgoing:
           type: number
+          description: Total de dinero enviado
+          example: 800.00
         year:
           type: integer
+          example: 2026
         month:
           type: integer
-      required: [_id, account, date_start, date_end]
+          minimum: 1
+          maximum: 12
+          example: 1
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [account, date_start, date_end, year, month, total_incoming, total_outgoing]
 
     Transaction:
       type: object
+      description: Transacción bancaria
       properties:
         date:
           type: string
           format: date-time
+          example: "2026-01-15T10:30:00.000Z"
         amount:
           type: number
+          description: Monto de la transacción (positivo para ingresos, negativo para egresos)
+          example: 250.50
         currency:
           type: string
+          example: "EUR"
         description:
           type: string
+          example: "Transferencia recibida"
       required: [date, amount, currency]
 
     Error:
       type: object
       properties:
         error:
-          type: boolean
+          type: string
+          example: "not_found"
         message:
           type: string
+          example: "Recurso no encontrado"
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token obtenido del API Gateway.
+        
+        Payload esperado:
+        ```json
+        {
+          "id": "string",
+          "name": "string",
+          "email": "string",
+          "iban": "string",
+          "phoneNumber": "string",
+          "subscription": "string"
+        }
+        ```
+
+security:
+  - bearerAuth: []
 
 tags:
+  - name: health
+    description: Operaciones de salud del servicio
   - name: bankstatements
-    description: Operaciones sobre bank statements
-
-x-info:
-  generatedBy: assistant
+    description: Operaciones sobre estados de cuenta bancarios

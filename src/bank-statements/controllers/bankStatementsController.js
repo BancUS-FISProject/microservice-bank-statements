@@ -43,11 +43,41 @@ async function getById(req, res) {
 
 async function getByIbanMonth(req, res) {
     const { iban, month } = req.query;
+    const user = req.user;
+
     try {
-        const detail = await bankStatementsService.getByIbanMonth(iban, month);
+        let detail = await bankStatementsService.getByIbanMonth(iban, month);
+
+        // Si no se encuentra el statement, intentar generarlo automáticamente
         if (!detail) {
-            return res.status(404).json({ error: 'not_found', message: 'El IBAN no registra estados de cuenta correspondientes a este mes' });
+            console.log(`[controller] Statement no encontrado para ${iban} - ${month}, generando...`);
+            try {
+                // Generar statement para el mes solicitado
+                const stmt = await bankStatementsService.generateSingle({
+                    accountId: iban,
+                    month,
+                    transactions: [], // Usar microservicio para obtener transacciones
+                    user
+                });
+
+                // Retornar el statement recién generado
+                return res.status(201).json({
+                    iban,
+                    month,
+                    detail: stmt,
+                    generated: true,
+                    message: 'Statement generado automáticamente'
+                });
+            } catch (genErr) {
+                console.error('[controller] Error al generar statement automáticamente:', genErr);
+                // Si falla la generación, retornar 404 original
+                return res.status(404).json({
+                    error: 'not_found',
+                    message: 'El IBAN no registra estados de cuenta correspondientes a este mes y no se pudo generar automáticamente'
+                });
+            }
         }
+
         return res.json({ iban, month, detail });
     } catch (err) {
         console.error('[controller] getByIbanMonth error', err);
@@ -130,6 +160,62 @@ async function updateStatements(req, res) {
     }
 }
 
-module.exports = { getByIbanMonths, getById, getByIbanMonth, generate, deleteByIdentifier, deleteById, updateStatements };
+async function generateFromCurrentMonth(req, res) {
+    const { iban } = req.body;
+    const user = req.user;
+    const token = req.headers.authorization;
+
+    console.log('[controller] generateFromCurrentMonth -> iban:', iban);
+    console.log('[controller] generateFromCurrentMonth -> token presente:', !!token);
+
+    try {
+        // Verificar que el IBAN solicitado coincida con el del usuario autenticado
+        if (user && user.iban && user.iban !== iban) {
+            return res.status(403).json({
+                error: 'forbidden',
+                message: 'No tienes permiso para generar estados de cuenta para este IBAN'
+            });
+        }
+
+        const result = await bankStatementsService.generateFromCurrentMonth(iban, user, token);
+
+        if (result.existing) {
+            return res.status(200).json({
+                message: 'Ya existe un estado de cuenta para este mes',
+                existing: true,
+                statement: result.statement
+            });
+        }
+
+        return res.status(201).json({
+            message: 'Estado de cuenta generado exitosamente',
+            created: true,
+            statement: result.statement
+        });
+    } catch (err) {
+        console.error('[controller] generateFromCurrentMonth error', err);
+
+        if (err && err.message === 'error_fetching_transactions') {
+            return res.status(502).json({
+                error: 'error_fetching_transactions',
+                message: 'No se pudieron obtener las transacciones del servicio externo'
+            });
+        }
+
+        if (err && err.message === 'no_transactions_found') {
+            return res.status(404).json({
+                error: 'no_transactions_found',
+                message: 'No se encontraron transacciones para el mes actual. El estado de cuenta no se puede generar sin transacciones.'
+            });
+        }
+
+        return res.status(500).json({
+            error: 'failed_to_generate_statement',
+            message: 'Error al generar el estado de cuenta'
+        });
+    }
+}
+
+module.exports = { getByIbanMonths, getById, getByIbanMonth, generate, deleteByIdentifier, deleteById, updateStatements, generateFromCurrentMonth };
 
 

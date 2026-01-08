@@ -40,7 +40,7 @@ const _mockAccountsPool = [
     mockAccount(10, 'ES1234567890123456789012'),
 ];
 
-function mockTransaction(accountId, accountIban) {
+function mockTransaction(accountId, accountIban, forCurrentMonth = false) {
     const isIncoming = Math.random() > 0.5;
     const otherAccount = _mockAccountsPool[Math.floor(Math.random() * _mockAccountsPool.length)];
 
@@ -51,12 +51,22 @@ function mockTransaction(accountId, accountIban) {
 
     const amount = Math.floor(25 + Math.random() * 3000); // 25-3025 EUR (rango más amplio)
 
-    // Generar fechas del mes anterior (diciembre 2025 para enero 2026)
+    // Generar fechas: mes actual o mes anterior según parámetro
     const now = new Date();
-    const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const year = previousMonth.getFullYear();
-    const month = previousMonth.getMonth();
-    const lastDay = new Date(year, month + 1, 0).getDate();
+    let year, month, lastDay;
+
+    if (forCurrentMonth) {
+        // Mes ACTUAL (enero 2026)
+        year = now.getFullYear();
+        month = now.getMonth();
+        lastDay = new Date(year, month + 1, 0).getDate();
+    } else {
+        // Mes ANTERIOR (diciembre 2025)
+        const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        year = previousMonth.getFullYear();
+        month = previousMonth.getMonth();
+        lastDay = new Date(year, month + 1, 0).getDate();
+    }
 
     const gmt_time = new Date(
         year,
@@ -83,20 +93,53 @@ function mockTransaction(accountId, accountIban) {
             : `Transferencia enviada a ${otherAccount.name}`,
         sender_balance: parseFloat((5000 + Math.random() * 20000).toFixed(2)),
         receiver_balance: parseFloat((5000 + Math.random() * 20000).toFixed(2)),
+        gmt_time: gmt_time.toISOString(),
+    };
+}
+
+module.exports = {
+    getAccount: async (id) => {
+        const account = _mockAccountsPool.find(a => a.id === String(id) || a.iban === id);
+        return account || _mockAccountsPool[0];
     },
 
-        getAllAccounts: async (count = 5) => {
-            // Devuelve lista de cuentas mock para pruebas
-            return _mockAccountsPool.slice(0, Math.min(count, _mockAccountsPool.length));
-        },
+    getAllAccounts: async (count = 5) => {
+        // Devuelve lista de cuentas mock para pruebas
+        return _mockAccountsPool.slice(0, Math.min(count, _mockAccountsPool.length));
+    },
 
-            getTransactions: async (accountId) => {
-                // Encontrar la cuenta y su IBAN
-                const account = _mockAccountsPool.find(a => a.id === String(accountId) || a.iban === accountId);
-                const accountIban = account?.iban || accountId;
+    getTransactions: async (accountId, token = null) => {
+        console.log('[mock] getTransactions called for:', accountId);
 
-                // Generar 10-20 transacciones coherentes para el mes (mix de incoming/outgoing)
-                const txCount = 10 + Math.floor(Math.random() * 11);
-                return { ok: true, id: randomId(), payload };
-            },
+        // Encontrar la cuenta y su IBAN
+        const account = _mockAccountsPool.find(a => a.id === String(accountId) || a.iban === accountId);
+        const accountIban = account?.iban || accountId;
+
+        // Generar transacciones: mitad del mes anterior, mitad del mes actual
+        const transactions = [];
+
+        // 7-10 transacciones del mes anterior
+        const previousMonthTxCount = 7 + Math.floor(Math.random() * 4);
+        for (let i = 0; i < previousMonthTxCount; i++) {
+            transactions.push(mockTransaction(accountId, accountIban, false));
+        }
+
+        // 8-12 transacciones del mes actual (para que el POST funcione)
+        const currentMonthTxCount = 8 + Math.floor(Math.random() * 5);
+        for (let i = 0; i < currentMonthTxCount; i++) {
+            transactions.push(mockTransaction(accountId, accountIban, true));
+        }
+
+        // Ordenar por fecha
+        transactions.sort((a, b) => new Date(a.gmt_time) - new Date(b.gmt_time));
+
+        console.log(`[mock] Generated ${transactions.length} transactions (${previousMonthTxCount} previous month, ${currentMonthTxCount} current month)`);
+
+        return transactions;
+    },
+
+    sendNotification: async (payload) => {
+        console.log('[mock] sendNotification called:', payload);
+        return { ok: true, id: randomId(), payload };
+    },
 };

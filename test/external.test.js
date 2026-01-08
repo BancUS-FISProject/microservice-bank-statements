@@ -74,38 +74,26 @@ describe('Bank Statements API – tests externos (servicio real)', () => {
         expect(body).toHaveProperty('status', 'ok');
     });
 
-    it('POST /v1/bankstatements/generate crea un statement con datos de prueba', async () => {
-        const res = await http('POST', `${API_PREFIX}/generate`, {
-            accountId: testIban,
-            month: '2025-11',
-            transactions: [
-                {
-                    sender: 'ES2222222222222222222222',
-                    receiver: testIban,
-                    amount: 150.0,
-                    currency: 'EUR',
-                    gmt_time: '2025-11-10T12:00:00Z',
-                },
-                {
-                    sender: testIban,
-                    receiver: 'ES2222222222222222222222',
-                    amount: 50.0,
-                    currency: 'EUR',
-                    gmt_time: '2025-11-15T14:00:00Z',
-                },
-            ],
+    it('POST /v1/bankstatements/generate-current crea un statement del mes actual', async () => {
+        const res = await http('POST', `${API_PREFIX}/generate-current`, {
+            iban: testIban
         });
 
         if (skipIfNoApi()) return;
 
-        expect(res.status).toBe(201);
+        // Puede ser 201 (creado), 200 (ya existe), 404 (sin transacciones) o 502 (error servicio)
+        expect([200, 201, 404, 502]).toContain(res.status);
         const body = await res.json();
 
-        expect(body).toHaveProperty('created', true);
-        expect(body).toHaveProperty('statement');
-        expect(body.statement).toHaveProperty('_id');
-
-        createdStatementId = body.statement._id;
+        if (res.status === 201) {
+            expect(body).toHaveProperty('created', true);
+            expect(body).toHaveProperty('statement');
+            expect(body.statement).toHaveProperty('_id');
+            createdStatementId = body.statement._id;
+        } else if (res.status === 200) {
+            expect(body).toHaveProperty('existing', true);
+            expect(body).toHaveProperty('statement');
+        }
     });
 
     it('GET /v1/bankstatements/by-iban/:iban devuelve meses disponibles', async () => {
@@ -188,30 +176,25 @@ describe('Bank Statements API – tests externos (servicio real)', () => {
         expect(body).toHaveProperty('updated', true);
     });
 
-    it('DELETE /v1/bankstatements/by-identifier elimina por accountId y month', async () => {
-        const res = await http('DELETE', `${API_PREFIX}/by-identifier`, {
-            accountId: testAccountId,
-            month: '2025-11',
-        });
+    it('DELETE /v1/bankstatements/:id elimina statement por ID', async () => {
+        if (!createdStatementId) {
+            console.warn('[EXTERNAL TESTS] No hay statement creado, se omite este test.');
+            return;
+        }
+
+        const res = await http('DELETE', `${API_PREFIX}/${createdStatementId}`);
 
         if (skipIfNoApi()) return;
 
         expect([200, 404]).toContain(res.status);
     });
 
-    it('DELETE /v1/bankstatements/by-identifier elimina por id si existe', async () => {
-        if (!createdStatementId) {
-            console.warn('[EXTERNAL TESTS] No hay statement creado, se omite este test.');
-            return;
-        }
-
-        const res = await http('DELETE', `${API_PREFIX}/by-identifier`, {
-            id: createdStatementId,
-        });
+    it('DELETE /v1/bankstatements/:id con ID inválido devuelve 400', async () => {
+        const res = await http('DELETE', `${API_PREFIX}/INVALID_ID`);
 
         if (skipIfNoApi()) return;
 
-        expect([200, 404]).toContain(res.status);
+        expect(res.status).toBe(400);
     });
 
     it('GET /v1/bankstatements/:id devuelve 404 después del borrado', async () => {

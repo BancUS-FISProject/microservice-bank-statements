@@ -25,6 +25,7 @@ const BankStatementSchema = new Schema({
     month: { type: Number, required: true, index: true },
 }, { timestamps: true });
 
-
+// Índice compuesto para búsquedas eficientes por IBAN + año + mes
+BankStatementSchema.index({ 'account.iban': 1, year: 1, month: 1 }, { unique: true });
 
 module.exports = model('BankStatement', BankStatementSchema);

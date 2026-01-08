@@ -3,18 +3,22 @@
 
 @baseUrl = http://localhost:3000/v1/bankstatements
 @testIban = ES1111111111111111111111
-@testId = 695e382baa7e4a20cbc2dcf8
+@testId = 695ef392f56ad40f282ba740
+# Token JWT de ejemplo - reemplazar con token válido del login
+@token = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYmFuIjoiRVMxMTExMTExMTExMTExMTExMTExMTExIiwibmFtZSI6IlVzdWFyaW8gVGVzdCIsImVtYWlsIjoidGVzdEB0ZXN0LmNvbSJ9.test
 
 ### Health Check
 GET http://localhost:3000/health
 
-### 1. Listar meses disponibles por IBAN
+### 1. GET /by-iban/:iban - Listar meses disponibles por IBAN
 GET {{baseUrl}}/by-iban/{{testIban}}
 Accept: application/json
+Authorization: {{token}}
 
-### 2. Obtener statement por IBAN y mes específico
+### 2. GET /by-iban?iban&month - Obtener statement por IBAN y mes específico
 GET {{baseUrl}}/by-iban?iban={{testIban}}&month=2025-12
 Accept: application/json
+Authorization: {{token}}
 
 ### 3. Obtener statement por ID de MongoDB
 GET {{baseUrl}}/{{testId}}
@@ -81,3 +85,16 @@ Content-Type: application/json
     "month": 10
   }
 ]
+
+### 8. POST /generate-current - Generar estado de cuenta del mes actual desde transacciones
+# Este es el endpoint que usa el botón "Simular" del frontend
+# Consume GET /v1/transactions/user/{iban} del microservicio
+# Filtra transacciones del mes actual y crea un nuevo statement
+# Persiste en la base de datos con el esquema BankStatementSchema
+POST {{baseUrl}}/generate-current
+Content-Type: application/json
+Authorization: {{token}}
+
+{
+  "iban": "{{testIban}}"
+}

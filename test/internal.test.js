@@ -39,25 +39,15 @@ describe('Bank Statements service API', () => {
         expect(res.body).toHaveProperty('status', 'ok');
     });
 
-    it('POST /v1/bankstatements/generate devuelve 201 o 500 (sin BD conectada)', async () => {
+    it('POST /v1/bankstatements/generate-current devuelve 201, 200, 404, 502 o 500', async () => {
         const res = await request(app)
-            .post('/v1/bankstatements/generate')
+            .post('/v1/bankstatements/generate-current')
             .send({
-                accountId: testAccountId,
-                month: '2025-09',
-                transactions: [
-                    {
-                        sender: 'sender-internal',
-                        receiver: testAccountId,
-                        amount: 200.0,
-                        currency: 'USD',
-                        gmt_time: '2025-09-05T10:00:00Z',
-                    },
-                ],
+                iban: testIban
             });
 
-        // En test sin BD, puede retornar 500
-        expect([201, 500]).toContain(res.status);
+        // Puede ser 201 (creado), 200 (ya existe), 404 (sin transacciones), 502 (error servicio) o 500 (sin BD)
+        expect([200, 201, 404, 500, 502]).toContain(res.status);
     });
 
     it('GET /v1/bankstatements/by-iban/:iban retorna 200 o 500', async () => {

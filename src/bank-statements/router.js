@@ -28,4 +28,7 @@ router.delete('/:id', validate(validators.deleteById), controller.deleteById);
 // PUT /v1/bankstatements/account/{iban}/statements -> reemplazar lista de estados de cuenta por IBAN
 router.put('/account/:iban/statements', validate(validators.updateStatements), controller.updateStatements);
 
+// POST /v1/bankstatements/generate-current -> generar estado de cuenta del mes actual desde transacciones
+router.post('/generate-current', validate(validators.generateFromCurrentMonth), controller.generateFromCurrentMonth);
+
 module.exports = router;
