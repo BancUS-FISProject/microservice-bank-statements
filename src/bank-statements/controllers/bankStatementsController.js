@@ -149,14 +149,61 @@ async function deleteById(req, res) {
 
 async function updateStatements(req, res) {
     const { iban } = req.params;
-    const statements = req.body;
+    const user = req.user;
+    const token = req.headers.authorization;
+
+    console.log('[controller] updateStatements -> iban:', iban);
+    console.log('[controller] updateStatements -> token presente:', !!token);
+
     try {
-        const out = await bankStatementsService.updateStatements(iban, statements);
-        return res.json({ updated: true, count: Array.isArray(out) ? out.length : 0, items: out });
+        // Verificar que el IBAN solicitado coincida con el del usuario autenticado
+        if (user && user.iban && user.iban !== iban) {
+            return res.status(403).json({
+                error: 'forbidden',
+                message: 'No tienes permiso para actualizar estados de cuenta para este IBAN'
+            });
+        }
+
+        const result = await bankStatementsService.updateStatements(iban, user, token);
+
+        if (result.updated) {
+            return res.status(200).json({
+                message: 'Estado de cuenta actualizado exitosamente',
+                updated: true,
+                statement: result.statement
+            });
+        }
+
+        if (result.created) {
+            return res.status(201).json({
+                message: 'Estado de cuenta creado exitosamente',
+                created: true,
+                statement: result.statement
+            });
+        }
+
+        return res.json(result);
     } catch (err) {
         console.error('[controller] updateStatements error', err);
-        if (err.message === 'statements_must_be_array') return res.status(400).json({ error: 'statements_must_be_array' });
-        return res.status(500).json({ error: 'failed_to_update' });
+
+        if (err && err.message === 'error_fetching_transactions') {
+            return res.status(502).json({
+                error: 'error_fetching_transactions',
+                message: 'No se pudieron obtener las transacciones del servicio externo'
+            });
+        }
+
+        if (err && err.message === 'no_transactions_found') {
+            return res.status(404).json({
+                error: 'no_transactions_found',
+                message: 'No se encontraron transacciones para actualizar el estado de cuenta'
+            });
+        }
+
+        return res.status(500).json({
+            error: 'failed_to_update',
+            message: 'Error al actualizar el estado de cuenta'
+        });
     }
 }
 
@@ -179,10 +226,18 @@ async function generateFromCurrentMonth(req, res) {
 
         const result = await bankStatementsService.generateFromCurrentMonth(iban, user, token);
 
-        if (result.existing) {
+        if (result.updated) {
             return res.status(200).json({
-                message: 'Ya existe un estado de cuenta para este mes',
-                existing: true,
+                message: 'Estado de cuenta actualizado con las transacciones más recientes',
+                updated: true,
+                statement: result.statement
+            });
+        }
+
+        if (result.created) {
+            return res.status(201).json({
+                message: 'Estado de cuenta generado exitosamente',
+                created: true,
                 statement: result.statement
             });
         }

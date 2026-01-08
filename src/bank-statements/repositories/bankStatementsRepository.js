@@ -59,6 +59,15 @@ async function deleteById(id) {
     return BankStatement.findByIdAndDelete(id).lean();
 }
 
+async function updateById(id, updateData) {
+    console.log(`[repo] updateById -> id=${id}`);
+    return BankStatement.findByIdAndUpdate(
+        id,
+        { $set: updateData },
+        { new: true, runValidators: true }
+    ).lean();
+}
+
 async function replaceStatementsForAccount(accountId, statements = []) {
     console.log(`[repo] replaceStatementsForAccount -> accountId=${accountId}, count=${(statements || []).length}`);
     // eliminar statements existentes
@@ -93,4 +102,4 @@ async function appendTransaction(accountId, tx, opts = {}) {
     return saveStatement(stmt);
 }
 
-module.exports = { findByIban, findById, saveStatement, appendTransaction, deleteById, replaceStatementsForAccount, findByAccountYearMonth, findByAccountNameYearMonth, findByIbanYearMonth };
+module.exports = { findByIban, findById, saveStatement, appendTransaction, deleteById, updateById, replaceStatementsForAccount, findByAccountYearMonth, findByAccountNameYearMonth, findByIbanYearMonth };

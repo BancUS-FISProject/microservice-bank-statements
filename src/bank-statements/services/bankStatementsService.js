@@ -402,20 +402,160 @@ async function deleteById(id) {
 }
 
 // replace the list of statements for an account by IBAN
-async function updateStatements(iban, statements) {
-    console.log('[service] updateStatements -> iban=', iban, 'count=', Array.isArray(statements) ? statements.length : 0);
-    if (!Array.isArray(statements)) throw new Error('statements_must_be_array');
-    // basic normalization: ensure account.iban is set for each statement
-    const normalized = statements.map(s => {
-        const st = Object.assign({}, s);
-        st.account = Object.assign({}, st.account || {}, { iban: iban });
-        return st;
-    });
+// Esta función ahora obtiene transacciones del microservicio y actualiza el statement
+async function updateStatements(iban, user = null, token = null) {
+    console.log('[service] updateStatements -> iban=', iban, 'token presente:', !!token);
+    const ms = require('../../lib/ms');
+
+    // Obtener mes actual
+    const now = new Date();
+    const year = now.getFullYear();
+    const monthIndex = now.getMonth();
+    const month = monthIndex + 1;
+
+    console.log(`[service] updateStatements -> actualizando para mes: ${year}-${String(month).padStart(2, '0')}`);
+
+    // Calcular rangos de fecha para el mes actual
+    const date_start = new Date(year, monthIndex, 1);
+    const date_end = new Date(year, monthIndex + 1, 0, 23, 59, 59, 999);
+
+    // Obtener transacciones del microservicio
+    let allTransactions = [];
     try {
-        const out = await repo.replaceStatementsForAccount(iban, normalized);
-        return out;
+        console.log(`[service] updateStatements -> obteniendo transacciones para ${iban}`);
+        const response = await ms.getTransactions(iban, token);
+        if (response && Array.isArray(response)) {
+            allTransactions = response;
+        } else if (response && Array.isArray(response.transactions)) {
+            allTransactions = response.transactions;
+        }
     } catch (err) {
-        console.error('[service] updateStatements error', err);
+        console.error('[service] updateStatements error fetching transactions:', err.message || err);
+        const e = new Error('error_fetching_transactions');
+        throw e;
+    }
+
+    console.log(`[service] updateStatements -> fetched ${allTransactions.length} total transactions`);
+
+    // LOGS DETALLADOS: Ver estructura de las transacciones recibidas
+    console.log('═══════════════════════════════════════════════════════════');
+    console.log('[DEBUG] Estructura completa de transacciones recibidas (updateStatements):');
+    allTransactions.forEach((tx, idx) => {
+        console.log(`  [${idx}]:`, JSON.stringify(tx, null, 2));
+    });
+    console.log('═══════════════════════════════════════════════════════════');
+
+    // Si no hay transacciones, retornar error
+    if (allTransactions.length === 0) {
+        throw new Error('no_transactions_found');
+    }
+
+    // Tomar el sender_balance del PRIMER objeto como saldo inicial
+    const initialBalance = allTransactions.length > 0 && allTransactions[0].sender_balance
+        ? Number(allTransactions[0].sender_balance)
+        : 0;
+
+    console.log(`[service] updateStatements -> saldo inicial (sender_balance del primer objeto): ${initialBalance}`);
+
+    // Calcular totales partiendo del saldo inicial
+    let total_incoming = initialBalance; // Inicializar con el saldo inicial
+    let total_outgoing = 0;
+
+    const mappedTx = allTransactions.map((t, index) => {
+        const amount = Number(t.amount || t.quantity || 0);
+        const date = t.gmt_time ? new Date(t.gmt_time) : new Date();
+
+        // Determinar tipo de transacción basado en sender/receiver
+        const senderIban = (t.sender || '').trim().toUpperCase();
+        const receiverIban = (t.receiver || '').trim().toUpperCase();
+        const currentIban = iban.trim().toUpperCase();
+
+        let type = 'unknown';
+        if (senderIban === currentIban) {
+            type = 'outgoing';
+            total_outgoing += amount;
+        } else if (receiverIban === currentIban) {
+            type = 'incoming';
+            total_incoming += amount;
+        }
+
+        return {
+            sender: senderIban,
+            receiver: receiverIban,
+            amount,
+            type,
+            status: t.status || 'completed',
+            currency: t.currency || 'EUR',
+            date
+        };
+    });
+
+    // Ordenar transacciones por fecha
+    mappedTx.sort((a, b) => a.date - b.date);
+
+    console.log(`[service] updateStatements -> totals: incoming=${total_incoming} (incluye saldo inicial ${initialBalance}), outgoing=${total_outgoing}`);
+
+    // Preparar datos de la cuenta
+    let account = { iban };
+
+    if (user && user.iban) {
+        account = {
+            iban: user.iban,
+            name: user.name || user.username || 'Usuario',
+            email: user.email || '',
+        };
+    } else {
+        // Intentar obtener datos de la cuenta desde microservicio
+        try {
+            const accountData = await ms.getAccountByIban(iban);
+            if (accountData) {
+                account = {
+                    iban: accountData.iban || iban,
+                    name: accountData.name || accountData.accountName || 'Usuario',
+                    email: accountData.email || '',
+                };
+            }
+        } catch (err) {
+            console.warn('[service] updateStatements -> no se pudo obtener datos de cuenta:', err.message);
+        }
+    }
+
+    // Construir objeto de estado de cuenta actualizado
+    const statement = {
+        account: {
+            iban: account.iban || iban,
+            name: account.name || 'Usuario',
+            email: account.email || '',
+        },
+        date_start,
+        date_end,
+        year,
+        month,
+        transactions: mappedTx,
+        total_incoming,
+        total_outgoing,
+    };
+
+    // Actualizar en la base de datos
+    try {
+        // Primero buscar si existe un statement para este IBAN/año/mes
+        const existing = await repo.findByIbanYearMonth(iban, year, month);
+
+        if (existing) {
+            // Actualizar el existente
+            console.log(`[service] updateStatements -> actualizando statement existente: ${existing._id}`);
+            const updated = await repo.updateById(existing._id, statement);
+            console.log('[service] updateStatements -> statement actualizado exitosamente');
+            return { updated: true, statement: updated };
+        } else {
+            // Crear nuevo statement
+            console.log('[service] updateStatements -> creando nuevo statement');
+            const created = await repo.saveStatement(statement);
+            console.log('[service] updateStatements -> statement creado exitosamente');
+            return { created: true, statement: created };
+        }
+    } catch (err) {
+        console.error('[service] updateStatements error persisting:', err);
         throw err;
     }
 }
@@ -442,11 +582,13 @@ async function generateFromCurrentMonth(iban, user, token = null) {
     try {
         const existing = await repo.findByIbanYearMonth(iban, year, month);
         if (existing) {
-            console.log('[service] generateFromCurrentMonth -> statement ya existe, retornando existente');
-            return { existing: true, statement: existing };
+            console.log(`[service] generateFromCurrentMonth -> ya existe statement para ${iban} - ${year}-${month}`);
+            console.log('[service] generateFromCurrentMonth -> actualizando statement existente con transacciones actuales');
+            // Llamar a updateStatements para actualizar con transacciones actuales
+            return await updateStatements(iban, user, token);
         }
     } catch (err) {
-        console.warn('[service] generateFromCurrentMonth: error checking existing', err.message || err);
+        console.log('[service] generateFromCurrentMonth -> no existe statement previo, generando nuevo');
     }
 
     // Calcular rangos de fecha para el mes actual
