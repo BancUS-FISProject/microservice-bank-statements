@@ -6,26 +6,26 @@ const YAML = require('yaml');
 
 dotenv.config();
 
-const DEFAULT_PORT = 3000;
+const DEFAULT_PORT = 3002;
 const port = process.env.PORT || DEFAULT_PORT;
 const { connect } = require('./db');
 
 function createApp() {
     const app = express();
-    
+
     // Habilitar CORS para Swagger UI
     app.use((req, res, next) => {
         res.header('Access-Control-Allow-Origin', '*');
         res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
         res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-        
+
         // Manejar preflight requests
         if (req.method === 'OPTIONS') {
             return res.sendStatus(200);
         }
         next();
     });
-    
+
     app.use(express.json());
 
     // Middleware de logging para ver todas las peticiones y respuestas
