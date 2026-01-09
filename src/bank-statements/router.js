@@ -6,8 +6,16 @@ const validate = require('../middleware/validate');
 const validators = require('../validators/bankStatementsValidators');
 const { extractUserFromToken } = require('../middleware/auth');
 
+// Health check endpoint (sin autenticación)
+router.get('/health', (req, res) => {
+    res.status(200).json({
+        status: 'UP',
+        service: 'bank-statements',
+        marker: 'ROUTER_HEALTH_OK'
+    });
+});
 
-// Aplicar middleware de autenticación a todas las rutas
+// Aplicar middleware de autenticación a todas las rutas siguientes
 router.use(extractUserFromToken);
 
 // Rutas según especificación:

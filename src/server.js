@@ -14,19 +14,12 @@ function createApp() {
     const app = express();
 
     app.use((req, res, next) => {
-        console.log('[REQ]', req.method, req.originalUrl);
+        // Ignorar logs de health checks
+        if (!req.originalUrl.includes('/health')) {
+            console.log('[REQ]', req.method, req.originalUrl);
+        }
         next();
     });
-
-    //  HEALTH EXACTO QUE LLAMA EL GATEWAY
-    app.get('/v1/bankstatements/health', (req, res) => {
-        res.status(200).json({
-            status: 'UP',
-            service: 'bank-statements',
-            marker: 'SERVER_HEALTH_OK'
-        });
-    });
-
 
     // // Habilitar CORS para Swagger UI
     // app.use((req, res, next) => {
@@ -45,6 +38,11 @@ function createApp() {
 
     // Middleware de logging para ver todas las peticiones y respuestas
     app.use((req, res, next) => {
+        // Ignorar logs de health checks
+        if (req.url.includes('/health')) {
+            return next();
+        }
+
         const start = Date.now();
         const originalJson = res.json;
 
