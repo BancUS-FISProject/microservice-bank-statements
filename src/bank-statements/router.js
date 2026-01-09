@@ -27,24 +27,13 @@ router.get(
 );
 
 // GET /v1/bankstatements/by-iban?iban=ES..&month=YYYY-MM
-router.get(
-    '/by-iban',
-    validate(validators.getByIbanMonth),
-    controller.getByIbanMonth
-);
+router.get('/by-iban', validate(validators.getByIbanMonth), controller.getByIbanMonth);
 
 // POST /v1/bankstatements/generate-current
-router.post(
-    '/generate-current',
-    validate(validators.generateFromCurrentMonth),
-    controller.generateFromCurrentMonth
-);
+router.post('/generate-current', validate(validators.generateFromCurrentMonth), controller.generateFromCurrentMonth);
 
 // POST /v1/bankstatements/generate
-router.post(
-    '/generate',
-    validate(validators.generate),
-    controller.generate
+router.post('/generate', validate(validators.generate), controller.generate
 );
 
 /**
@@ -54,24 +43,12 @@ router.post(
  */
 
 // GET /v1/bankstatements/{id}
-router.get(
-    '/:id',
-    validate(validators.getById),
-    controller.getById
-);
+router.get('/:id', validate(validators.getById), controller.getById);
 
 // PUT /v1/bankstatements/{id}
-router.put(
-    '/:id',
-    validate(validators.updateStatement),
-    controller.updateStatement
-);
+router.put('/:id', validate(validators.updateStatement), controller.updateStatement);
 
 // DELETE /v1/bankstatements/{id}
-router.delete(
-    '/:id',
-    validate(validators.deleteById),
-    controller.deleteById
-);
+router.delete('/:id', validate(validators.deleteById), controller.deleteById);
 
 module.exports = router;
